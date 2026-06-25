@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Encryptus Docs — theme tokens ported verbatim from
+   reference/index.html. Originally scoped to `.ed-app` /
+   `.ed-app[data-theme="dark"]`; rescoped to :root so next-themes
+   (which writes data-theme on <html>) drives SSR-safe theming.
+   The `.ed-app` class remains the styled page container.
+   ============================================================ */
+
+/* ============ THEME TOKENS — LIGHT (default) ============ */
+:root {
+  --c-bg:#FAFBFE; --c-bg-deep:#FFFFFF; --c-surface:#FFFFFF; --c-surface-hover:#F5F8FD;
+  --c-surface-sunken:#F4F6FB; --c-surface-rail:#FAFBFE;
+  --c-header-bg:rgba(255,255,255,.92); --c-header-border:#E6EAF2;
+  --c-border:#E6EAF2; --c-border-card:#E2E7F1; --c-border-gold:#E2E7F1;
+  --c-border-faint:#EBEEF5; --c-divider:#EEF1F8; --c-modal-border:#E2E7F1;
+  --c-hover:#F2F5FB;
+  --c-text:#1B2336; --c-heading:#0A1A4F; --c-text-secondary:#46506E;
+  --c-text-muted:#6B7796; --c-text-faint:#8794B2; --c-text-oncard:#46506E;
+  --c-accent:#2B5BD7; --c-accent-soft:rgba(43,91,215,.10); --c-accent-bar:#2B5BD7;
+  --c-accent-border:rgba(43,91,215,.34); --c-icon-bg:rgba(43,91,215,.10);
+  --c-logo:#E8B419;
+  --c-cta-bg:#14203A; --c-cta-text:#FFFFFF; --c-cta-spinner:rgba(255,255,255,.35);
+  --c-navpill-bg:rgba(43,91,215,.10); --c-navpill-text:#2B5BD7; --c-nav-text:#46506E;
+  --c-field-bg:#FFFFFF; --c-field-border:#E2E7F1; --c-field-text:#6B7796;
+  --c-kbd-border:#D8DEEA; --c-kbd-text:#8794B2;
+  --c-chip-bg:#EEF1F8; --c-chip-text:#8794B2; --c-chip-surface:#FFFFFF;
+  --c-ghost-bg:#FFFFFF; --c-ghost-border:#E2E7F1; --c-ghost-text:#0A1A4F;
+  --c-danger:#E5484D; --c-danger-text:#C2362F; --c-success:#1F9D63;
+  --c-success-bg:#E2F2EA; --c-success-text:#1C8A4E;
+  --c-table-head-bg:#0A1A4F; --c-table-head-text:#FFFFFF;
+  --c-row-1:#FFFFFF; --c-row-2:#FAFBFE; --c-table-name:#0A1A4F; --c-type:#7B3FE4;
+  --c-code-text:#2A3356; --c-crumb-sep:#B6C0D8;
+  --c-auth-bg:#EAF0FE; --c-auth-border:#C9D7F8; --c-auth-text:#33406A; --c-auth-stroke:#2B5BD7;
+  --c-inline-bg:#EEF1F8; --c-inline-text:#2B5BD7;
+  --c-footer-link:#46506E;
+  --c-hero-bg:radial-gradient(120% 140% at 80% -10%,#FFFFFF 0%,#F4F7FC 55%,#FAFBFE 100%);
+  --c-hero-dot:rgba(10,26,79,.05);
+  --c-banner-bg:linear-gradient(90deg,rgba(43,91,215,.07),rgba(43,91,215,.03));
+  --c-banner-border:rgba(43,91,215,.18);
+  --c-m-get-bg:#E7F6EE; --c-m-get-fg:#1C8A4E;
+  --c-m-post-bg:#E8EFFD; --c-m-post-fg:#2B5BD7;
+  --c-m-put-bg:#E8EFFD; --c-m-put-fg:#2B5BD7;
+  --c-m-patch-bg:#F0EAFB; --c-m-patch-fg:#7B3FE4;
+  --c-m-delete-bg:#FCE9E9; --c-m-delete-fg:#C2362F;
+  --c-m-get-solid:#1F9D63; --c-m-get-solid-fg:#FFFFFF;
+  --c-m-post-solid:#2B5BD7; --c-m-post-solid-fg:#FFFFFF;
+  --c-m-put-solid:#2B5BD7; --c-m-put-solid-fg:#FFFFFF;
+  --c-m-patch-solid:#7B3FE4; --c-m-patch-solid-fg:#FFFFFF;
+  --c-m-delete-solid:#D64545; --c-m-delete-solid-fg:#FFFFFF;
+  --c-scroll-thumb:rgba(10,26,79,.18);
+
+  /* New tokens (port of guide/error body hardcoded hex, now themed) */
+  --c-guide-bg:#F6F8FC;
+  --c-tip-bg:#FFF8E1; --c-tip-border:#F2D98A; --c-tip-text:#6B5A12;
+  --c-service-chip-bg:#E9EEFB;
+  --c-codeblock-bg:#0B1020; --c-codeblock-text:#C7D0EC; --c-codeblock-label:#7A88B0;
+  --c-cta-band-bg:#0A1A4F; --c-cta-band-text:#FFFFFF; --c-cta-band-sub:#AEB9DC;
+}
+
+/* ============ THEME TOKENS — DARK ============ */
+:root[data-theme="dark"] {
+  --c-bg:#0A1A4F; --c-bg-deep:#081541; --c-surface:#0E2161; --c-surface-hover:#11276F;
+  --c-surface-sunken:#0B1020; --c-surface-rail:#081541;
+  --c-header-bg:rgba(8,21,65,.92); --c-header-border:rgba(232,180,25,.18);
+  --c-border:rgba(255,255,255,.08); --c-border-card:rgba(255,255,255,.12); --c-border-gold:rgba(232,180,25,.22);
+  --c-border-faint:rgba(255,255,255,.06); --c-divider:rgba(255,255,255,.08); --c-modal-border:rgba(232,180,25,.3);
+  --c-hover:rgba(255,255,255,.05);
+  --c-text:#E8ECF7; --c-heading:#FFFFFF; --c-text-secondary:#B9C3E0;
+  --c-text-muted:#9AA6C9; --c-text-faint:#7A88B0; --c-text-oncard:#AEB9DC;
+  --c-accent:#E8B419; --c-accent-soft:rgba(232,180,25,.12); --c-accent-bar:#E8B419;
+  --c-accent-border:rgba(232,180,25,.4); --c-icon-bg:rgba(232,180,25,.14);
+  --c-logo:#E8B419;
+  --c-cta-bg:#E8B419; --c-cta-text:#0A1A4F; --c-cta-spinner:rgba(10,26,79,.3);
+  --c-navpill-bg:#E8B419; --c-navpill-text:#0A1A4F; --c-nav-text:#C7D0EC;
+  --c-field-bg:rgba(255,255,255,.06); --c-field-border:rgba(255,255,255,.12); --c-field-text:#9AA6C9;
+  --c-kbd-border:rgba(255,255,255,.16); --c-kbd-text:#7A88B0;
+  --c-chip-bg:rgba(255,255,255,.06); --c-chip-text:#8290B5; --c-chip-surface:rgba(255,255,255,.04);
+  --c-ghost-bg:rgba(255,255,255,.06); --c-ghost-border:rgba(255,255,255,.2); --c-ghost-text:#FFFFFF;
+  --c-danger:#E5484D; --c-danger-text:#D8584F; --c-success:#3CCB7F;
+  --c-success-bg:#E2F2EA; --c-success-text:#1C8A4E;
+  --c-table-head-bg:#06102B; --c-table-head-text:#E8B419;
+  --c-row-1:rgba(255,255,255,.015); --c-row-2:rgba(255,255,255,.05); --c-table-name:#E8ECF7; --c-type:#C99BFF;
+  --c-code-text:#C7D0EC; --c-crumb-sep:#3A4570;
+  --c-auth-bg:rgba(43,91,215,.16); --c-auth-border:rgba(43,91,215,.4); --c-auth-text:#C9D7F8; --c-auth-stroke:#7FA0F5;
+  --c-inline-bg:rgba(255,255,255,.08); --c-inline-text:#9FB4E8;
+  --c-footer-link:#E8B419;
+  --c-hero-bg:radial-gradient(120% 140% at 80% -10%,#15296b 0%,#0A1A4F 55%,#081541 100%);
+  --c-hero-dot:rgba(255,255,255,.05);
+  --c-banner-bg:linear-gradient(90deg,rgba(232,180,25,.1),rgba(43,91,215,.08));
+  --c-banner-border:rgba(232,180,25,.2);
+  --c-m-post-bg:#FBEFC9; --c-m-post-fg:#8A6A00;
+  --c-m-put-bg:#E5ECFB; --c-m-put-fg:#2B5BD7;
+  --c-m-patch-bg:#EFE6FB; --c-m-patch-fg:#7B3FE4;
+  --c-m-delete-bg:#FBE4E4; --c-m-delete-fg:#C2362F;
+  --c-m-get-bg:#E2F2EA; --c-m-get-fg:#1C8A4E;
+  --c-m-post-solid:#E8B419; --c-m-post-solid-fg:#0A1A4F;
+  --c-scroll-thumb:rgba(255,255,255,.16);
+
+  /* New tokens — dark variants for the now-themed guide/error bodies */
+  --c-guide-bg:#0A1730;
+  --c-tip-bg:rgba(232,180,25,.08); --c-tip-border:rgba(232,180,25,.28); --c-tip-text:#E8D9A0;
+  --c-service-chip-bg:rgba(43,91,215,.18);
+  --c-codeblock-bg:#06102B; --c-codeblock-text:#C7D0EC; --c-codeblock-label:#7A88B0;
+  --c-cta-band-bg:#06102B; --c-cta-band-text:#FFFFFF; --c-cta-band-sub:#AEB9DC;
+}
+
+/* ---- Tailwind v4 theme mapping: expose tokens as utility colors ---- */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-heading: var(--c-heading);
+  --color-text: var(--c-text);
+  --color-text-secondary: var(--c-text-secondary);
+  --color-text-muted: var(--c-text-muted);
+  --color-text-faint: var(--c-text-faint);
+  --color-accent: var(--c-accent);
+  --color-border: var(--c-border);
+  --color-border-card: var(--c-border-card);
+  --font-oswald: var(--font-oswald);
+  --font-ibm: var(--font-ibm);
+}
+
+::selection { background:#E8B419; color:#0A1A4F; }
+.ed-scroll::-webkit-scrollbar { width:10px; height:10px; }
+.ed-scroll::-webkit-scrollbar-thumb { background:var(--c-scroll-thumb); border-radius:8px; }
+.ed-scroll-l::-webkit-scrollbar { width:9px; height:9px; }
+.ed-scroll-l::-webkit-scrollbar-thumb { background:rgba(10,26,79,.18); border-radius:8px; }
+@keyframes ed-spin { to { transform:rotate(360deg); } }
+@keyframes ed-fade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+/* ---- App container (was the inline-styled #app div) ---- */
+.ed-app {
+  font-family: var(--font-ibm), system-ui, sans-serif;
+  min-height: 100vh;
+  background: var(--c-bg);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Hover / focus effects (replacing the data-hover/applyDynamicStyles pattern) ---- */
+.ed-hover-bg:hover { background: var(--c-hover); }
+.ed-topic { transition: background .15s, border-color .15s; }
+.ed-topic:hover { background: var(--c-hover); border-color: var(--c-accent-border); }
+.ed-card:hover { border-color: var(--c-accent-border); transform: translateY(-3px); background: var(--c-surface-hover); }
+.ed-toc-link:hover { color: var(--c-text); }
+.ed-cat-link:hover { color: var(--c-text); border-left-color: var(--c-accent-bar); }
+.ed-feedback:hover { border-color: var(--c-accent); }
+.ed-prevnext:hover { border-color: var(--c-accent); }
+.ed-social:hover { border-color: var(--c-accent); background: var(--c-accent-soft); }
+.ed-footer-link:hover { opacity: 1 !important; text-decoration: underline; }
+.ed-pg-input:focus { border-color: var(--c-accent); }
+
+/* ---- Responsive (ported verbatim; class names preserved) ---- */
+@media(max-width:1240px){
+  .ed-api-grid{grid-template-columns:300px minmax(0,1fr) !important;}
+  .ed-rail{grid-column:1 / -1 !important;position:static !important;height:auto !important;max-height:none !important;border-left:none !important;border-top:1px solid var(--c-border) !important;}
+}
+@media(max-width:1080px){
+  .ed-toc{display:none !important;}
+  .ed-guide-grid{grid-template-columns:260px minmax(0,1fr) !important;}
+}
+@media(max-width:860px){
+  .ed-hide-mobile{display:none !important;}
+  .ed-show-mobile{display:block !important;}
+  .ed-home-cards{grid-template-columns:1fr !important;}
+  .ed-topics{grid-template-columns:1fr !important;}
+  .ed-footer-grid{grid-template-columns:1fr 1fr !important;}
+  .ed-guide-grid, .ed-api-grid{grid-template-columns:1fr !important;}
+  .ed-sidebar, .ed-rail{position:static !important;height:auto !important;max-height:none !important;border-right:none !important;border-left:none !important;border-bottom:1px solid var(--c-border) !important;}
+  .ed-sidebar{max-height:300px !important;overflow-y:auto !important;}
+  .ed-rail{order:3;}
+}
+@media(max-width:560px){
+  .ed-footer-grid{grid-template-columns:1fr !important;}
+  .ed-hero-h1{font-size:38px !important;}
+}
