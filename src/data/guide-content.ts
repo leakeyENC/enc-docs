@@ -557,4 +557,185 @@ export const GUIDE_CONTENT: Record<string, GuideContent> = {
       { kind: "endpointRef", method: "POST", path: "/v1/payin/fiat_wallet/convert-to-crypto", note: "See the conversion and transaction endpoints in the API Reference." },
     ],
   },
+
+  // ===========================================================================
+  // CRYPTO DEPOSITS & BALANCES (Wallets)
+  // ===========================================================================
+  "crypto-deposits": {
+    breadcrumb: "Crypto Deposits & Balances",
+    title: "Crypto Deposits & Balances",
+    intro:
+      "Before you can pay anyone, your Encryptus account needs crypto in it. This guide explains how partners **fund** the platform: you get a dedicated deposit address for a user, send crypto to it, and then read the balance that becomes available to quote and pay out against.",
+    blocks: [
+      { kind: "heading", id: "address", text: "Getting a deposit address" },
+      { kind: "para", text: "Encryptus gives you a **deposit address** to send crypto to. The address is tied to a user, so funds are always attributed to the right account. Unless you ask for something else, the default asset is **USDC** — a US-dollar stablecoin — which keeps the value you deposit predictable while it sits on the platform." },
+      { kind: "para", text: "Send crypto to that address the way you would any on-chain transfer. Once the network confirms it, the deposit is captured as a **crypto deposit** on your account and credits your available balance." },
+      { kind: "heading", id: "balance", text: "Checking your balance" },
+      { kind: "para", text: "At any point you can read your **balance** for a given user and coin to see what's available. This is the figure that matters before you request a payout quote: a quote and order can only be settled against funds you actually hold." },
+      { kind: "tip", text: "Always confirm the balance has cleared before locking a quote. A quote is only good for a short window, so deposit first, confirm the balance, then request the quote and submit the order." },
+      { kind: "para", text: "Deposits and balances are also recorded as **tickets** in the ledger — see the **Tickets & Balances** guide for the full deposit, withdrawal and history view." },
+      { kind: "endpointRef", method: "GET", path: "/v1/getDepositAddress", note: "See the deposit-address and balance endpoints in the API Reference." },
+    ],
+  },
+
+  // ===========================================================================
+  // ALTERNATE PAYOUTS (Gift Card, Topup, Billpayment)
+  // ===========================================================================
+  "alt-payouts": {
+    breadcrumb: "Alternate Payouts",
+    title: "Alternate Payouts",
+    intro:
+      "A bank wire isn't the only way to deliver value. Encryptus can also pay recipients as **gift cards**, **mobile airtime top-ups** and **utility bill payments** — useful when a recipient has no bank account, prefers store credit, or simply needs their phone or a bill paid directly. This guide gives the overview; the sub-pages cover each method.",
+    blocks: [
+      { kind: "heading", id: "why", text: "Why alternate payouts" },
+      { kind: "para", text: "Not every recipient can — or wants to — receive a bank transfer. Alternate payouts widen who you can reach: a gift card works for someone without a bank account, a mobile top-up puts airtime or data straight onto a phone, and a bill payment settles an obligation directly with the provider. Only the **destination** changes; the crypto-funded off-ramp underneath is the same." },
+      { kind: "heading", id: "methods", text: "The three methods" },
+      { kind: "table", columns: ["Method", "Delivers", "Best for"], rows: [
+        ["Gift Cards", "Store or brand credit", "Recipients without a bank account; rewards and incentives"],
+        ["Mobile Top-up", "Airtime and data", "Topping up a phone number directly"],
+        ["Bill Payments", "Payment to a biller", "Settling utility and other bills"],
+      ]},
+      { kind: "heading", id: "shape", text: "The shared shape" },
+      { kind: "para", text: "All three follow the same familiar pattern you already know from bank wire, so once you've built one the others are quick:" },
+      { kind: "list", ordered: true, items: [
+        "**Discover** what's available — browse filters, regions, carriers, categories or operators.",
+        "**Quote** — request a price that locks what the recipient receives for the crypto spent.",
+        "**Order** — submit the payout to deliver the gift card, top-up or bill payment.",
+        "**Track** — follow the order to completion, and receive webhook updates on state changes.",
+      ]},
+      { kind: "tip", text: "Because the flow mirrors bank wire, the same rules apply: quotes are time-limited, and orders settle through the same Acknowledged → Pending → Completed lifecycle you can watch via webhooks." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payout/giftcard/order", note: "Browse the gift-card, top-up and bill-payment endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  giftcards: {
+    breadcrumb: "Alternate Payouts",
+    title: "Gift Cards",
+    intro:
+      "Gift-card payouts let you deliver value as store or brand credit instead of cash to a bank. This is ideal for recipients without a bank account, and for rewards and incentive programmes. This page explains how to find products, lock a quote, place an order and track it.",
+    blocks: [
+      { kind: "heading", id: "browse", text: "Browsing products & regions" },
+      { kind: "para", text: "Start by browsing what's on offer. The gift-card **filters** show you the available products and the regions they apply to, so you can present the right brands to a recipient in a given country before committing to anything." },
+      { kind: "heading", id: "quote", text: "Locking a quote" },
+      { kind: "para", text: "Once you know which gift card you want, request a **quote**. The quote fixes what the recipient receives for the amount of crypto being spent, so there are no surprises between deciding and ordering. Like all Encryptus quotes it's valid for a short window." },
+      { kind: "heading", id: "order", text: "Placing & tracking an order" },
+      { kind: "para", text: "Confirm the quote by placing an **order**, which issues the gift card to the recipient. You can then **track that order** by its identifier, or list **all your gift-card orders** to review history and reconcile activity." },
+      { kind: "tip", text: "Browse filters by region first so you only offer gift cards that are actually redeemable where your recipient is — then quote and order against a product you know is supported." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payout/giftcard/order", note: "See the gift-card filter, quote and order endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "mobile-topup": {
+    breadcrumb: "Alternate Payouts",
+    title: "Mobile Top-up",
+    intro:
+      "Mobile top-up delivers value straight to a phone as **airtime or data**. It's one of the fastest ways to get value to a recipient — no bank account or card needed, just a phone number. This page walks through finding the right carrier and plan, quoting, ordering and tracking.",
+    blocks: [
+      { kind: "heading", id: "discover", text: "Finding the carrier & plan" },
+      { kind: "para", text: "Top-ups are specific to a country and a mobile carrier, so you start by narrowing things down:" },
+      { kind: "list", items: [
+        "Check the **supported countries** and the **carriers** available in each.",
+        "Use the **mobile lookup** to detect the carrier for a phone number automatically, so the recipient doesn't have to tell you their network.",
+        "Read the **carrier plans** to see the available top-up amounts and bundles.",
+      ]},
+      { kind: "heading", id: "quote", text: "Quote & order" },
+      { kind: "para", text: "With a carrier and plan chosen, request a **quote** to lock what the recipient receives for the crypto spent, then **submit the order** to deliver the airtime or data to the phone number." },
+      { kind: "heading", id: "track", text: "Tracking" },
+      { kind: "para", text: "After ordering you can **track a top-up** by its identifier, or list **all your top-up orders** to review what's been sent and reconcile activity." },
+      { kind: "tip", text: "Use the mobile lookup before quoting — confirming the carrier from the number itself avoids failed top-ups caused by sending to the wrong network." },
+      { kind: "endpointRef", method: "POST", path: "/v1/topup/submit-order", note: "See the carrier, lookup, quote and order endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "bill-payments": {
+    breadcrumb: "Alternate Payouts",
+    title: "Bill Payments",
+    intro:
+      "Bill payments let you settle a recipient's obligations — utilities and similar bills — directly with the provider, funded by crypto. Instead of handing over cash, you pay the biller on the recipient's behalf. This page covers finding the biller, quoting and ordering.",
+    blocks: [
+      { kind: "heading", id: "discover", text: "Finding the biller" },
+      { kind: "para", text: "Bills are organised by **category** (the type of bill, such as a utility) and by **operator** (the specific company being paid). The **filters** help you narrow down to the exact biller a recipient needs, so the payment reaches the right provider." },
+      { kind: "heading", id: "quote", text: "Quoting the payment" },
+      { kind: "para", text: "Once you've identified the operator and the amount, request a **quote**. As with every Encryptus payout, the quote locks the cost in crypto against the value delivered to the biller, and is valid for a short window." },
+      { kind: "heading", id: "order", text: "Submitting the order" },
+      { kind: "para", text: "Confirm the quote by **submitting the order**, and Encryptus settles the bill with the operator. The payment then follows the same lifecycle as other payouts, so you can watch it complete via webhooks." },
+      { kind: "tip", text: "Resolve the right category and operator before quoting — paying the correct biller is what makes a bill payment land, so confirm the operator matches the recipient's account or reference." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payout/billpayment/submit-order", note: "See the category, operator, quote and order endpoints in the API Reference." },
+    ],
+  },
+
+  // ===========================================================================
+  // LIQUIDITY & TRADING
+  // ===========================================================================
+  liquidity: {
+    breadcrumb: "Liquidity & Trading",
+    title: "Liquidity & Trading",
+    intro:
+      "Liquidity is about **buying and selling crypto** against Encryptus rather than paying a recipient. Where a payout quote prices crypto-to-fiat delivery to someone else, a liquidity quote prices a trade for your own account. This guide explains the pricing reads and how to place buy and sell orders.",
+    blocks: [
+      { kind: "heading", id: "prices", text: "Live pair prices" },
+      { kind: "para", text: "You can read live prices for a trading **pair** before committing to anything. There are a few ways to ask, depending on what you already know:" },
+      { kind: "list", items: [
+        "**Pair price** — the current rate for a trading pair.",
+        "**Price by quantity** — what a specific amount of crypto will cost or yield.",
+        "**Price** — pricing for the value you intend to trade.",
+      ]},
+      { kind: "para", text: "Reading the price first lets you show a user exactly what a trade will look like before they confirm it." },
+      { kind: "heading", id: "orders", text: "Buying & selling" },
+      { kind: "para", text: "When you're ready to act on a price, submit either a **buy order** or a **sell order**. A buy order acquires crypto; a sell order disposes of it — both execute against Encryptus liquidity at the agreed price." },
+      { kind: "heading", id: "vs-payout", text: "How this differs from a payout" },
+      { kind: "para", text: "It's worth being clear on the distinction: a **payout** (bank wire, gift card, top-up, bill payment) delivers value to a **recipient**, while **liquidity** simply trades crypto for your **own account**. They share the quote-then-confirm rhythm, but the outcome is different — one settles to someone else, the other adjusts what you hold." },
+      { kind: "tip", text: "Prices move, so read the price close to the moment you intend to trade and submit the order promptly to act on the rate you were shown." },
+      { kind: "endpointRef", method: "POST", path: "/v1/quote/pairPrice", note: "See the pair-price and buy/sell order endpoints in the API Reference." },
+    ],
+  },
+
+  // ===========================================================================
+  // WALLET SCREENING (TRM)
+  // ===========================================================================
+  "wallet-screening": {
+    breadcrumb: "Wallet Screening (TRM)",
+    title: "Wallet Screening (TRM)",
+    intro:
+      "Before crypto moves, Encryptus checks **who** is on the other end. Wallet screening runs a crypto address through a risk analysis — powered by TRM — to flag links to sanctioned, fraudulent or otherwise high-risk activity. This guide explains what screening is for and how it fits the payout flow.",
+    blocks: [
+      { kind: "heading", id: "what", text: "What screening checks" },
+      { kind: "para", text: "A **wallet screen** takes a crypto address and assesses its risk: whether it's associated with sanctioned entities, scams, stolen funds or other illicit activity. Encryptus uses this to keep your integration compliant and to protect both you and your users from interacting with tainted funds." },
+      { kind: "heading", id: "why", text: "Why it matters" },
+      { kind: "para", text: "Moving value to or from a risky address can carry legal and reputational consequences. Screening gives you an objective, automated check at the moment it counts, so high-risk addresses can be caught **before** a deposit is trusted or a payout is sent — not discovered afterwards." },
+      { kind: "heading", id: "fits", text: "How it fits the bigger picture" },
+      { kind: "para", text: "Screening sits alongside **whitelisting**: addresses you intend to pay out to are screened for risk and then whitelisted so only vetted destinations are used. Together they form the compliance gate around every movement of funds — see the **Whitelisting Recipients** guide for how vetted destinations are saved and reused." },
+      { kind: "tip", text: "Treat screening as a gate, not a formality. If an address comes back high-risk, stop and review it before proceeding rather than paying out and dealing with the consequences later." },
+      { kind: "endpointRef", method: "POST", path: "/v1/trm/walletscreener", note: "See the wallet-screening endpoint in the API Reference." },
+    ],
+  },
+
+  // ===========================================================================
+  // WEBHOOKS & NOTIFICATIONS
+  // ===========================================================================
+  webhooks: {
+    breadcrumb: "Webhooks & Notifications",
+    title: "Webhooks & Notifications",
+    intro:
+      "Webhooks let Encryptus **notify you** the moment something changes, instead of you having to poll for updates. When a transaction moves from one state to the next, Encryptus calls a URL you control with the news. This guide explains how webhooks work and how to register them.",
+    blocks: [
+      { kind: "heading", id: "what", text: "What a webhook is" },
+      { kind: "para", text: "A webhook is simply a URL on your side that Encryptus calls when an event happens. Rather than repeatedly asking \"is it done yet?\", you register an endpoint once and Encryptus pushes an update to it whenever there's something to report — keeping your system in sync in near real time." },
+      { kind: "heading", id: "states", text: "When webhooks fire" },
+      { kind: "para", text: "Webhooks fire on a **change of state**, not continuously. Every transaction moves through a simple lifecycle, and you're notified at each transition:" },
+      { kind: "list", ordered: true, items: [
+        "**Acknowledged** — the request has been received.",
+        "**Pending** — it is being processed.",
+        "**Completed** or **Failed** — the final outcome.",
+      ]},
+      { kind: "para", text: "Because notifications arrive only on a state change, you get a clean, meaningful update at each step rather than a stream of noise." },
+      { kind: "heading", id: "manage", text: "Registering & managing endpoints" },
+      { kind: "para", text: "You **register** a webhook by telling Encryptus which URL to call, and you can **update** it later if the URL changes. To review your configuration, **fetch all your webhooks** or look one up by its identifier." },
+      { kind: "tip", text: "Make your webhook handler **idempotent** — able to receive the same notification more than once without double-processing. It's the safest way to handle retries and keeps your records accurate." },
+      { kind: "endpointRef", method: "POST", path: "/v1/webhook/register", note: "See the register, update and fetch webhook endpoints in the API Reference." },
+    ],
+  },
 };
