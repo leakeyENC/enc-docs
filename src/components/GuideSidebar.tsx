@@ -63,8 +63,8 @@ export function GuideSidebar() {
               borderLeft: active ? "2px solid var(--c-accent-bar)" : "2px solid transparent",
             }}
           >
-            <span style={{ width: "12px", flex: "none", color: "var(--c-text-faint)", fontSize: "11px" }}>
-              {hasKids ? (isOpen ? "▾" : "▸") : ""}
+            <span style={{ width: "14px", flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", color: active ? "var(--c-accent)" : "var(--c-nav-text)" }}>
+              {hasKids ? <Chevron open={isOpen} /> : null}
             </span>
             <span style={{ flex: 1 }}>{n.label}</span>
           </div>
@@ -76,12 +76,12 @@ export function GuideSidebar() {
               row
             ) : isErrNode ? (
               <Link href="/errors" style={{ ...rowBase, marginLeft: 0, fontWeight: active ? 600 : 500, color: active ? "var(--c-accent)" : "var(--c-nav-text)", background: active ? "var(--c-accent-soft)" : "transparent", borderLeft: active ? "2px solid var(--c-accent-bar)" : "2px solid transparent" }} className="ed-hover-bg">
-                <span style={{ width: "12px", flex: "none", color: "var(--c-text-faint)", fontSize: "11px" }} />
+                <span style={{ width: "14px", flex: "none" }} />
                 <span style={{ flex: 1 }}>{n.label}</span>
               </Link>
             ) : (
               <Link href={`/guides/${n.id}`} style={{ ...rowBase, marginLeft: 0, fontWeight: active ? 600 : 500, color: active ? "var(--c-accent)" : "var(--c-nav-text)", background: active ? "var(--c-accent-soft)" : "transparent", borderLeft: active ? "2px solid var(--c-accent-bar)" : "2px solid transparent" }} className="ed-hover-bg">
-                <span style={{ width: "12px", flex: "none", color: "var(--c-text-faint)", fontSize: "11px" }} />
+                <span style={{ width: "14px", flex: "none" }} />
                 <span style={{ flex: 1 }}>{n.label}</span>
               </Link>
             )}
@@ -96,7 +96,7 @@ export function GuideSidebar() {
                     className="ed-hover-bg"
                     style={{ ...rowBase, marginLeft: "20px", fontWeight: ca ? 600 : 500, color: ca ? "var(--c-accent)" : "var(--c-text-muted)", background: ca ? "var(--c-accent-soft)" : "transparent", borderLeft: ca ? "2px solid var(--c-accent-bar)" : "2px solid transparent" }}
                   >
-                    <span style={{ width: "12px", flex: "none", color: "var(--c-text-faint)", fontSize: "11px" }} />
+                    <span style={{ width: "14px", flex: "none" }} />
                     <span style={{ flex: 1 }}>{c.label}</span>
                   </Link>
                 );
@@ -105,5 +105,26 @@ export function GuideSidebar() {
         );
       })}
     </aside>
+  );
+}
+
+/** Collapsible-group indicator: a chevron that points right when collapsed
+ *  and rotates down when the group is open. */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}
+    >
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
   );
 }
