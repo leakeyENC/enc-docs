@@ -37,14 +37,18 @@ export const GUIDE_NODES: GuideNode[] = [
     { id: "fiat-wallets-convert", label: "Conversions & Transactions", description: "Convert USD to crypto, read exchange rates, and review fiat wallet transaction history." },
   ]},
   { id: "crypto-deposits", label: "Crypto Deposits & Balances", description: "Fund Encryptus with crypto: get a per-user deposit address, see supported coins and networks, and check balances before you pay out." },
-  { id: "alt-payouts", label: "Alternate Payouts", description: "Pay recipients without a bank wire — gift cards, mobile airtime top-up and utility bill payments, all following the same quote-then-order flow.", children: [
-    { id: "giftcards", label: "Gift Cards", description: "Browse gift-card products and regions, lock a quote, place an order and track it to completion." },
-    { id: "mobile-topup", label: "Mobile Top-up", description: "Send mobile airtime and data: supported countries, carrier lookup, plans, quote, order and tracking." },
-    { id: "bill-payments", label: "Bill Payments", description: "Settle utility and other bills: categories, operators, filters, quote and order submission." },
-  ]},
-  { id: "liquidity", label: "Liquidity & Trading", description: "Get live buy and sell prices for crypto pairs and submit buy or sell orders against Encryptus liquidity." },
-  { id: "wallet-screening", label: "Wallet Screening (TRM)", description: "Why and how Encryptus screens crypto wallet addresses for risk before they are whitelisted or paid out." },
-  { id: "webhooks", label: "Webhooks & Notifications", description: "Receive real-time updates whenever a transaction changes state — register, update and review your webhook endpoints." },
+  // --- Day 7 nav (temporarily hidden) — see memory: day-7-hidden-nav-categories.md ---
+  // To restore these in the sidebar, simply un-comment the block below. The guide
+  // content for these slugs still lives in guide-content.ts; only the nav entries
+  // are commented out here, so un-commenting brings them back exactly as before.
+  // { id: "alt-payouts", label: "Alternate Payouts", description: "Pay recipients without a bank wire — gift cards, mobile airtime top-up and utility bill payments, all following the same quote-then-order flow.", children: [
+  //   { id: "giftcards", label: "Gift Cards", description: "Browse gift-card products and regions, lock a quote, place an order and track it to completion." },
+  //   { id: "mobile-topup", label: "Mobile Top-up", description: "Send mobile airtime and data: supported countries, carrier lookup, plans, quote, order and tracking." },
+  //   { id: "bill-payments", label: "Bill Payments", description: "Settle utility and other bills: categories, operators, filters, quote and order submission." },
+  // ]},
+  // { id: "liquidity", label: "Liquidity & Trading", description: "Get live buy and sell prices for crypto pairs and submit buy or sell orders against Encryptus liquidity." },
+  // { id: "wallet-screening", label: "Wallet Screening (TRM)", description: "Why and how Encryptus screens crypto wallet addresses for risk before they are whitelisted or paid out." },
+  // { id: "webhooks", label: "Webhooks & Notifications", description: "Receive real-time updates whenever a transaction changes state — register, update and review your webhook endpoints." },
   { id: "error-codes", label: "Error Codes Reference" },
 ];
 
