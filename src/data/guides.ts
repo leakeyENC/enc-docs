@@ -24,6 +24,18 @@ export const GUIDE_NODES: GuideNode[] = [
     { id: "get-kyc-url", label: "Get KYC/KYB URL", description: "Generate a hosted verification link where users upload documents with real-time feedback." },
     { id: "import-kyc", label: "Import KYC/KYB info", description: "Submit verified identity and address details directly through the import endpoints." },
   ]},
+  { id: "bankwire", label: "Bank Wire Payouts", description: "Pay recipients in local currency to a bank account or mobile wallet — the end-to-end crypto-to-fiat payout flow.", children: [
+    { id: "bankwire-quotes", label: "Quotes, FX & Corridors", description: "Check supported countries and currencies, read FX rates, and lock a 15-minute payout quote." },
+    { id: "bankwire-orders", label: "Submitting & Tracking", description: "Verify the beneficiary, submit the payout order to a bank or wallet, and track it to completion." },
+  ]},
+  { id: "tickets", label: "Tickets & Balances", description: "How deposits and withdrawals of crypto and fiat are processed as tickets, and how to read balances and history.", children: [
+    { id: "tickets-balances", label: "Balances & History", description: "Read crypto, fiat and combined balances, and review deposit, withdrawal, order and payout history." },
+    { id: "tickets-flow", label: "Deposit & Withdrawal Tickets", description: "The generate-then-approve lifecycle behind every crypto and fiat deposit and withdrawal." },
+  ]},
+  { id: "fiat-wallets", label: "Fiat Wallets", description: "Hold local-currency and USD balances, fund them via virtual accounts, and convert to crypto — the pay-in side.", children: [
+    { id: "fiat-wallets-accounts", label: "Wallets & Virtual Accounts", description: "Create fiat wallets, generate USD virtual accounts, manage beneficiaries and top up balances." },
+    { id: "fiat-wallets-convert", label: "Conversions & Transactions", description: "Convert USD to crypto, read exchange rates, and review fiat wallet transaction history." },
+  ]},
   { id: "error-codes", label: "Error Codes Reference" },
 ];
 

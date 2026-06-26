@@ -327,4 +327,234 @@ export const GUIDE_CONTENT: Record<string, GuideContent> = {
       { kind: "endpointRef", method: "POST", path: "/v1/partners/kyc/individual/basic-details", note: "See every import endpoint and its fields in the API Reference." },
     ],
   },
+
+  // ===========================================================================
+  // BANK WIRE PAYOUTS
+  // ===========================================================================
+  bankwire: {
+    breadcrumb: "Bank Wire Payouts",
+    title: "Bank Wire Payouts",
+    intro:
+      "Bank wire is Encryptus' core **payout** flow: you convert deposited crypto into local currency and deliver it to a recipient's **bank account** or **mobile wallet** through licensed local rails. This guide gives the conceptual overview; the two sub-pages go deep on pricing and on submitting and tracking orders.",
+    blocks: [
+      { kind: "heading", id: "what", text: "What a bank-wire payout is" },
+      { kind: "para", text: "Your customer holds crypto; their recipient wants money in a local bank account. You deposit crypto with Encryptus, lock a **quote** that fixes the exchange rate, and submit a **payout order**. Encryptus settles the equivalent fiat to the recipient through its licensed payout partners — you never hold local-currency float or operate the corridor yourself. This is the journey the Partners **Use Case** guide describes, end to end." },
+      { kind: "heading", id: "flow", text: "The flow at a glance" },
+      { kind: "list", ordered: true, items: [
+        "**Check the corridor** — confirm the destination country and currency are supported.",
+        "**Verify the beneficiary** — validate the recipient's bank or wallet details (and ensure they're whitelisted).",
+        "**Quote** — request a quote by fiat amount or by crypto quantity; the rate is locked for **15 minutes**.",
+        "**Submit the order** — confirm the quote to send the payout to the bank or wallet.",
+        "**Track** — follow the order through its states to completion, with webhook updates on every change.",
+      ]},
+      { kind: "para", text: "The first three steps — corridors, FX and quotes — are covered in **Quotes, FX & Corridors**. Submitting the order and tracking it live in **Submitting & Tracking**." },
+      { kind: "heading", id: "destinations", text: "Bank account or mobile wallet" },
+      { kind: "para", text: "The same flow serves two destination types. A **bank** payout settles to a bank account; a **wallet** payout settles to a mobile-money or e-wallet provider. Only the transfer type and the destination details differ — quotes, order submission and tracking work the same way for both." },
+      { kind: "tip", text: "Every payout destination must be **whitelisted and screened** before funds can move — see the **Whitelisting Recipients** guide. A quote or order to a non-whitelisted destination is rejected." },
+      { kind: "endpointRef", method: "GET", path: "/v1/payout/bankwire/supportedcountries", note: "Browse the bank-wire payout endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "bankwire-quotes": {
+    breadcrumb: "Bank Wire Payouts",
+    title: "Quotes, FX & Corridors",
+    intro:
+      "Before you move money you confirm **where** you can send it and **at what rate**. This page covers supported corridors, FX rates, indicative estimates, and the firm quote that locks your exchange rate for 15 minutes.",
+    blocks: [
+      { kind: "heading", id: "corridors", text: "Supported countries and currencies" },
+      { kind: "para", text: "Start by validating the corridor. You can fetch the list of **supported countries** and **supported currencies** for bank-wire payouts and use them to constrain what a user can select — so they never build a transfer to a destination Encryptus can't settle." },
+      { kind: "heading", id: "estimates", text: "FX rates and estimated quotes" },
+      { kind: "para", text: "For display and \"what will this cost?\" previews, use the **FX rate** lookup and the **estimated** quotes. An estimated quote — by fiat amount or by crypto quantity — gives indicative pricing **without committing** to a transfer, so it's safe to call as the user types." },
+      { kind: "table", columns: ["Purpose", "Use"], rows: [
+        ["Show the live rate", "FX rate lookup"],
+        ["Preview by fiat amount", "Estimated quote by amount"],
+        ["Preview by crypto quantity", "Estimated quote by quantity"],
+      ]},
+      { kind: "heading", id: "firm", text: "Firm quotes and the 15-minute lock" },
+      { kind: "para", text: "When the user is ready, request a **firm quote**. You can quote two ways: **by amount** (you specify the fiat the recipient should receive and Encryptus computes the crypto needed) or **by quantity** (you specify the crypto to spend and Encryptus computes the fiat delivered). A firm quote **locks the exchange rate for 15 minutes**, during which you submit the order." },
+      { kind: "para", text: "Both quote types have a newer **v2** variant. Prefer **v2** for new integrations; the original endpoints remain for existing flows." },
+      { kind: "tip", text: "A locked quote is only valid for **15 minutes**. Submit the payout order before it lapses — if it expires, simply request a fresh quote and continue." },
+      { kind: "heading", id: "next", text: "What comes next" },
+      { kind: "para", text: "With a valid quote in hand, move to **Submitting & Tracking** to confirm the order and follow it to completion." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payout/bankwire/quotebyamount", note: "See the quote and FX endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "bankwire-orders": {
+    breadcrumb: "Bank Wire Payouts",
+    title: "Submitting & Tracking",
+    intro:
+      "Once you hold a valid quote, you confirm the recipient, submit the payout order, and track it to completion. This page covers beneficiary verification, order submission to a bank or wallet, the helper lookups, and order tracking.",
+    blocks: [
+      { kind: "heading", id: "verify", text: "Verify the beneficiary first" },
+      { kind: "para", text: "Before submitting, **verify the beneficiary's details** so a payout doesn't fail late for a bad account number or an unsupported bank. Verification also fits the whitelisting requirement: the destination must already be **whitelisted and screened** (see the **Whitelisting Recipients** guide). The bank account holder name must match the user's KYC, and Encryptus detects duplicate accounts by BIC/SWIFT plus account number." },
+      { kind: "heading", id: "lookups", text: "Helper lookups" },
+      { kind: "para", text: "Two lookups make it easy to capture correct destination details:" },
+      { kind: "list", items: [
+        "**Bank list** — fetch banks for a corridor, or search **banks by name**, so users pick a valid institution instead of typing one.",
+        "**Wallet codes** — fetch the mobile-wallet providers available for a country when paying out to an e-wallet.",
+      ]},
+      { kind: "heading", id: "submit", text: "Submitting the order" },
+      { kind: "para", text: "Confirm the quote to submit the payout. You submit to a **bank** destination or a **wallet** destination depending on where the funds should land. As with quotes, there are **v2** variants — prefer v2 for new work. You may also see `/unstable` variants: these are used where the destination corridor's rate is more volatile and the order is handled accordingly. Most integrations use the standard (or v2) bank and wallet submit calls." },
+      { kind: "heading", id: "track", text: "Tracking the payout" },
+      { kind: "para", text: "After submission, a payout moves through a simple set of states:" },
+      { kind: "list", ordered: true, items: [
+        "**Acknowledged** — Encryptus has accepted the order.",
+        "**Pending** — the payout is being settled through the local rail.",
+        "**Completed** — funds have reached the recipient. (Or **Failed** if settlement could not complete.)",
+      ]},
+      { kind: "para", text: "You can **list all transactions** for your account or fetch a **single transaction by its order id** to read the current state. Webhooks fire on **every state change**, so you can update your own records without polling." },
+      { kind: "tip", text: "Drive your UI from webhooks where you can — they fire only on state change, so you learn the moment a payout becomes Completed or Failed." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payout/bankwire/submitOrder/bank", note: "See the order-submission and tracking endpoints in the API Reference." },
+    ],
+  },
+
+  // ===========================================================================
+  // TICKETS & BALANCES
+  // ===========================================================================
+  tickets: {
+    breadcrumb: "Tickets & Balances",
+    title: "Tickets & Balances",
+    intro:
+      "Behind every payout sits a ledger of **balances** and **tickets**. A ticket is how Encryptus records and controls each movement of funds — a crypto or fiat deposit or withdrawal — while balances and order history let you see exactly where value sits. This guide gives the overview; the sub-pages cover reading balances and the ticket lifecycle.",
+    blocks: [
+      { kind: "heading", id: "what", text: "What a ticket is" },
+      { kind: "para", text: "Whenever funds move into or out of your Encryptus account, that movement is captured as a **ticket**. Tickets give every deposit and withdrawal a controlled, auditable lifecycle: they are **generated** and then go through a **final approval** before the funds settle. Buy and sell orders also surface alongside tickets so you have one place to see all activity." },
+      { kind: "heading", id: "types", text: "Four ticket types" },
+      { kind: "table", columns: ["Ticket", "Moves", "Direction"], rows: [
+        ["CD — Crypto Deposit", "Crypto", "In"],
+        ["CW — Crypto Withdrawal", "Crypto", "Out"],
+        ["FD — Fiat Deposit", "Fiat", "In"],
+        ["FW — Fiat Withdrawal", "Fiat", "Out"],
+      ]},
+      { kind: "para", text: "All four share the same **generate-then-approve** lifecycle, covered in **Deposit & Withdrawal Tickets**. To see what you currently hold and what has happened, use the balance and history reads in **Balances & History**." },
+      { kind: "heading", id: "use", text: "How you'll use this" },
+      { kind: "para", text: "In a typical off-ramp you deposit crypto (a CD ticket), it credits your crypto balance, you pay out fiat to a recipient, and the resulting movements appear in your withdrawal and payout history. The tickets system is the record and control layer underneath all of that." },
+      { kind: "endpointRef", method: "GET", path: "/v1/tickets/balance", note: "Browse the tickets and balance endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "tickets-balances": {
+    breadcrumb: "Tickets & Balances",
+    title: "Balances & History",
+    intro:
+      "This page covers the read-only side of the ledger: checking how much crypto and fiat you hold, and reviewing the history of deposits, withdrawals, orders and payouts.",
+    blocks: [
+      { kind: "heading", id: "balances", text: "Reading balances" },
+      { kind: "para", text: "You can read balances three ways — crypto, fiat, or a **combined** view of both. For crypto and fiat there are two styles: fetch **all assets** at once, or query a **single asset** when you only care about one coin or currency." },
+      { kind: "table", columns: ["You want", "Read"], rows: [
+        ["Everything at once", "Combined balance"],
+        ["All crypto / one coin", "Crypto balance (all or single)"],
+        ["All fiat / one currency", "Fiat balance (all or single)"],
+      ]},
+      { kind: "heading", id: "movements", text: "Deposit & withdrawal history" },
+      { kind: "para", text: "To see how balances got to where they are, pull the movement history. Each is available separately for crypto and fiat:" },
+      { kind: "list", items: [
+        "**Crypto deposits** and **crypto withdrawals**.",
+        "**Fiat deposits** and **fiat withdrawals**.",
+      ]},
+      { kind: "heading", id: "orders", text: "Order and payout history" },
+      { kind: "para", text: "Beyond raw movements you can review trading and payout activity. Fetch a single **buy order** or **sell order** by its id, or list **all orders** together. For payouts specifically, you can list **all payout transactions** on the account, or just those belonging to your **end users**." },
+      { kind: "tip", text: "Use the combined balance for a quick health check, then drill into the per-asset reads and history when you need to reconcile a specific coin, currency or order." },
+      { kind: "endpointRef", method: "GET", path: "/v1/tickets/balance", note: "See the balance and history endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "tickets-flow": {
+    breadcrumb: "Tickets & Balances",
+    title: "Deposit & Withdrawal Tickets",
+    intro:
+      "Every deposit and withdrawal — crypto or fiat — is processed as a **ticket** with a deliberate two-step lifecycle: it is first **generated**, then **finally approved** before the funds settle. This page explains that lifecycle and why it exists.",
+    blocks: [
+      { kind: "heading", id: "lifecycle", text: "Generate, then approve" },
+      { kind: "para", text: "Creating a ticket doesn't move funds on its own. You first **generate** the ticket for the movement you want, then a separate **final approval** step confirms it. Only after final approval does the deposit or withdrawal settle. This two-step design adds a control point — a deliberate, auditable second action — before value leaves or enters the account." },
+      { kind: "heading", id: "map", text: "The four flows" },
+      { kind: "para", text: "The same generate-then-approve pattern applies across all four ticket types:" },
+      { kind: "table", columns: ["Flow", "Generate", "Final approval"], rows: [
+        ["Crypto Deposit (CD)", "Generate CD ticket", "Approve CD ticket"],
+        ["Crypto Withdrawal (CW)", "Generate CW ticket", "Approve CW ticket"],
+        ["Fiat Deposit (FD)", "Generate FD ticket", "Approve FD ticket"],
+        ["Fiat Withdrawal (FW)", "Generate FW ticket", "Approve FW ticket"],
+      ]},
+      { kind: "heading", id: "monitor", text: "Monitoring tickets" },
+      { kind: "para", text: "You can list **all tickets** on the account to see what's pending approval and what has settled, giving you a single view of every in-flight and completed movement." },
+      { kind: "tip", text: "Withdrawals only succeed to **whitelisted** destinations. Make sure the wallet address or bank account is screened and whitelisted — see the **Whitelisting Recipients** guide — before generating a withdrawal ticket." },
+      { kind: "endpointRef", method: "POST", path: "/v1/tickets/crypto/withdraw", note: "See the ticket generation and approval endpoints in the API Reference." },
+    ],
+  },
+
+  // ===========================================================================
+  // FIAT WALLETS
+  // ===========================================================================
+  "fiat-wallets": {
+    breadcrumb: "Fiat Wallets",
+    title: "Fiat Wallets",
+    intro:
+      "Fiat wallets are Encryptus' **pay-in** product. Where bank wire sends fiat **out** to recipients, fiat wallets let you hold local-currency and **USD** balances, fund them through dedicated virtual accounts, and **convert** them into crypto. This guide gives the overview; the sub-pages cover accounts and conversions.",
+    blocks: [
+      { kind: "heading", id: "what", text: "What fiat wallets are for" },
+      { kind: "para", text: "A fiat wallet holds a balance in a given currency on behalf of a user. You can create wallets, fund them — including via a dedicated **USD virtual account** that receives real bank deposits — and then **convert** the balance into cryptocurrency that flows into the rest of the platform. It's the on-ramp counterpart to the bank-wire off-ramp." },
+      { kind: "heading", id: "pieces", text: "The three pieces" },
+      { kind: "list", items: [
+        "**Wallets** — create and read fiat wallet balances per user.",
+        "**Virtual accounts** — a dedicated USD account a user can be paid into, with beneficiaries and top-ups.",
+        "**Conversions & history** — convert USD to crypto, check exchange rates, and review transactions.",
+      ]},
+      { kind: "para", text: "Wallets and virtual accounts are covered in **Wallets & Virtual Accounts**; converting balances and reading history are covered in **Conversions & Transactions**." },
+      { kind: "tip", text: "Fiat wallets are about money coming **in** (pay-in). To send money **out** to a recipient's bank or mobile wallet, use **Bank Wire Payouts** instead." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payin/fiat_wallet/wallets", note: "Browse the fiat-wallet endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "fiat-wallets-accounts": {
+    breadcrumb: "Fiat Wallets",
+    title: "Wallets & Virtual Accounts",
+    intro:
+      "This page covers creating and reading fiat wallets, generating a USD **virtual account** to receive bank deposits, managing beneficiaries, and topping up — plus the sandbox-only tools that let you simulate real bank behaviour while you build.",
+    blocks: [
+      { kind: "heading", id: "wallets", text: "Creating and reading wallets" },
+      { kind: "para", text: "You create (or fetch an existing) fiat wallet for a user, list **all of a user's wallets**, and read a wallet's **balance**. Creating is idempotent in spirit — asking for a wallet that already exists returns it rather than making a duplicate." },
+      { kind: "heading", id: "virtual", text: "USD virtual accounts" },
+      { kind: "para", text: "For USD, you can **generate a virtual account** — a dedicated set of bank details a user can be paid into. Real deposits to that account credit the user's USD wallet. You can also manage **beneficiaries**: list the virtual-account beneficiaries, and **link** an existing beneficiary to a user." },
+      { kind: "heading", id: "topup", text: "Topping up" },
+      { kind: "para", text: "Beyond inbound deposits, you can **initiate a top-up** on a wallet to add funds. Combined with virtual accounts, this gives users more than one way to bring money into their fiat balance." },
+      { kind: "heading", id: "sandbox", text: "Sandbox-only simulation tools" },
+      { kind: "para", text: "Because real bank deposits can't be triggered on demand, the sandbox provides helpers to **emulate** what a bank would do — so you can build and test the full flow without waiting on a real transfer:" },
+      { kind: "list", items: [
+        "**Simulate a USD deposit** into a virtual account.",
+        "**Authorize**, **deny** or **cancel** a pending USD transaction.",
+        "**Send a webhook** manually to test your handler.",
+      ]},
+      { kind: "tip", text: "These simulation endpoints exist **only in sandbox**. They emulate bank-side events so you can exercise your integration end to end; in production those events come from the real banking rail." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/generate", note: "See the wallet and virtual-account endpoints in the API Reference." },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  "fiat-wallets-convert": {
+    breadcrumb: "Fiat Wallets",
+    title: "Conversions & Transactions",
+    intro:
+      "Once a fiat wallet holds a balance, you can convert it into crypto and review what has happened. This page covers USD-to-crypto conversion, exchange rates, and the transaction history reads.",
+    blocks: [
+      { kind: "heading", id: "convert", text: "Converting USD to crypto" },
+      { kind: "para", text: "The point of holding a funded USD wallet is to turn it into cryptocurrency that flows into the rest of the platform. You **convert USD to crypto** in a single step, and you can read the current **exchange rates** beforehand to show the user what they'll receive." },
+      { kind: "heading", id: "history", text: "Transaction history" },
+      { kind: "para", text: "Three reads cover the history side, from broad to specific:" },
+      { kind: "table", columns: ["You want", "Read"], rows: [
+        ["All wallet activity", "Transaction history"],
+        ["One transaction's detail", "Transaction by identifier"],
+        ["USD virtual-account activity", "Virtual-account (USD) transactions"],
+      ]},
+      { kind: "heading", id: "fits", text: "How it fits the bigger picture" },
+      { kind: "para", text: "A funded, converted fiat wallet feeds crypto into the same account that powers payouts. In other words, fiat wallets bring value **in**, and bank wire sends value **out** — together they let a partner run a full on- and off-ramp without operating either rail directly." },
+      { kind: "tip", text: "Show the live **exchange rate** before a conversion so users see exactly what they'll receive — rates move, so read them close to the moment of conversion." },
+      { kind: "endpointRef", method: "POST", path: "/v1/payin/fiat_wallet/convert-to-crypto", note: "See the conversion and transaction endpoints in the API Reference." },
+    ],
+  },
 };
