@@ -36,8 +36,8 @@ export function ApiSidebar() {
               className="ed-hover-bg"
               style={{ display: "flex", alignItems: "center", gap: "8px", padding: "9px 10px", borderRadius: "8px", cursor: "pointer" }}
             >
-              <span style={{ width: "12px", flex: "none", color: "var(--c-text-faint)", fontSize: "11px" }}>{isOpen ? "▾" : "▸"}</span>
-              <span style={{ flex: 1, fontFamily: OSWALD, fontWeight: 600, fontSize: "13.5px", letterSpacing: ".06em", color: "var(--c-text)", textTransform: "uppercase" }}>{g.id}</span>
+              <span style={{ width: "14px", flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--c-text-faint)" }}><Chevron open={isOpen} /></span>
+              <span style={{ flex: 1, fontFamily: "var(--font-ibm), system-ui, sans-serif", fontWeight: 600, fontSize: "13.5px", letterSpacing: ".01em", color: "var(--c-text)" }}>{g.id}</span>
               <span style={{ flex: "none", fontSize: "11px", color: "var(--c-chip-text)", background: "var(--c-chip-bg)", borderRadius: "20px", padding: "1px 8px" }}>{g.items.length}</span>
             </div>
             {isOpen && (
@@ -63,5 +63,26 @@ export function ApiSidebar() {
         );
       })}
     </aside>
+  );
+}
+
+/** Collapsible-group indicator: a chevron that points right when collapsed
+ *  and rotates down when the group is open. */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform .15s ease" }}
+    >
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
   );
 }

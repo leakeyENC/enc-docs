@@ -2,15 +2,15 @@
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { MONO, OSWALD } from "./primitives";
-import { CURL_DEFAULT, RESPONSE_JSON, tsSnippet, type ApiEndpoint } from "@/data/api";
+import { specFor, type ApiEndpoint } from "@/data/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export function TryItConsole({ endpoint }: { endpoint: ApiEndpoint }) {
+  const spec = useMemo(() => specFor(endpoint.id), [endpoint]);
   const [tab, setTab] = useState<"curl" | "ts">("curl");
-  const [curlText, setCurlText] = useState(CURL_DEFAULT);
-  const tsDefault = useMemo(() => tsSnippet(endpoint), [endpoint]);
-  const [tsText, setTsText] = useState(tsDefault);
+  const [curlText, setCurlText] = useState(spec.curl);
+  const [tsText, setTsText] = useState(spec.ts);
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -80,8 +80,8 @@ export function TryItConsole({ endpoint }: { endpoint: ApiEndpoint }) {
 
     // Stubbed response
     setTimeout(() => {
-      setResponse(RESPONSE_JSON);
-      setStatus("201 Created · 142ms");
+      setResponse(spec.responseJson);
+      setStatus(`${spec.successLabel} · 142ms`);
       setLoading(false);
       setDone(true);
     }, 1150);
