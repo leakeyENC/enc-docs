@@ -100,8 +100,27 @@ export const API_GROUPS: ApiGroup[] = [
     { id: "tickets-all", m: "GET", path: "/v1/tickets/all", label: "List All Tickets", desc: "List every ticket on the account, pending or settled, across all four flows." },
   ]},
   { id: "Bank Wire", items: [
-    { id: "wire-quote", m: "POST", path: "/v1/bank-wire/quote", label: "Create Wire Quote", desc: "Request a locked quote for an outbound bank wire." },
-    { id: "wire-execute", m: "POST", path: "/v1/bank-wire/execute", label: "Execute Wire", desc: "Execute a previously quoted bank wire." },
+    { id: "wire-supported-countries", m: "GET", path: "/v1/payout/bankwire/supportedcountries", label: "List Supported Countries", desc: "List destination countries supported for bank-wire payouts, filtered by product type." },
+    { id: "wire-supported-currencies", m: "GET", path: "/v1/payout/bankwire/supportedcurrencies", label: "List Supported Currencies", desc: "List receiving currencies available for a destination country." },
+    { id: "wire-fxrate", m: "GET", path: "/v1/payout/bankwire/fxrate", label: "Get FX Rate", desc: "Fetch the indicative FX rate and fee tiers for a coin into a receiving currency." },
+    { id: "wire-wallet-codes", m: "GET", path: "/v1/payout/bankwire/walletCodes", label: "List Wallet Provider Codes", desc: "List mobile-wallet provider codes available in a destination country." },
+    { id: "wire-bank-list", m: "GET", path: "/v1/payout/bankwire/banklist", label: "List Banks", desc: "List banks supported for payouts in a destination country (paginated)." },
+    { id: "wire-bank-list-by-name", m: "GET", path: "/v1/payout/bankwire/banklistbyname", label: "Search Banks by Name", desc: "Look up a supported bank in a country by name and currency." },
+    { id: "wire-verify-beneficiary", m: "POST", path: "/v1/payout/bankwire/verifybenificiary", label: "Verify Beneficiary", desc: "Validate a beneficiary's bank or wallet details before quoting a payout." },
+    { id: "wire-est-quote-by-amount", m: "POST", path: "/v1/payout/bankwire/estimatedquotebyamount", label: "Estimated Quote by Amount", desc: "Get an indicative payout estimate for a target receiving amount (no user required)." },
+    { id: "wire-est-quote-by-quantity", m: "POST", path: "/v1/payout/bankwire/estimatedquotebyquantity", label: "Estimated Quote by Quantity", desc: "Get an indicative payout estimate for a fixed coin quantity (no user required)." },
+    { id: "wire-quote-by-amount", m: "POST", path: "/v1/payout/bankwire/quotebyamount", label: "Create Quote by Amount", desc: "Create a locked, submittable quote targeting a receiving amount for a KYC'd user." },
+    { id: "wire-quote-by-quantity", m: "POST", path: "/v1/payout/bankwire/quotebyquantity", label: "Create Quote by Quantity", desc: "Create a locked, submittable quote for a fixed coin quantity for a KYC'd user." },
+    { id: "wire-quote-by-amount-v2", m: "POST", path: "/v1/payout/bankwire/quotebyamount/v2", label: "Create Quote by Amount (v2)", desc: "v2 quote by receiving amount; sender/receiver details move to the submit-order call." },
+    { id: "wire-quote-by-quantity-v2", m: "POST", path: "/v1/payout/bankwire/quotebyquantity/v2", label: "Create Quote by Quantity (v2)", desc: "v2 quote by coin quantity; sender/receiver details move to the submit-order call." },
+    { id: "wire-submit-bank", m: "POST", path: "/v1/payout/bankwire/submitOrder/bank", label: "Submit Bank Order", desc: "Confirm a quote and submit a bank-account payout order." },
+    { id: "wire-submit-wallet", m: "POST", path: "/v1/payout/bankwire/submitOrder/wallet", label: "Submit Wallet Order", desc: "Confirm a quote and submit a mobile-wallet payout order." },
+    { id: "wire-submit-bank-v2", m: "POST", path: "/v1/payout/bankwire/submitOrder/bank/v2", label: "Submit Bank Order (v2)", desc: "v2 bank-order confirmation carrying beneficiary and sender/receiver details." },
+    { id: "wire-submit-wallet-v2", m: "POST", path: "/v1/payout/bankwire/submitOrder/wallet/v2", label: "Submit Wallet Order (v2)", desc: "v2 wallet-order confirmation with provider and wallet number." },
+    { id: "wire-submit-bank-unstable", m: "POST", path: "/v1/payout/bankwire/submitOrder/bank/unstable", label: "Submit Bank Order (single-call)", desc: "Quote and submit a bank payout in one call, without a prior quoteId." },
+    { id: "wire-submit-wallet-unstable", m: "POST", path: "/v1/payout/bankwire/submitOrder/wallet/unstable", label: "Submit Wallet Order (single-call)", desc: "Quote and submit a wallet payout in one call, without a prior quoteId." },
+    { id: "wire-transactions", m: "GET", path: "/v1/payout/bankwire/transactions", label: "List Payout Transactions", desc: "List bank-wire payout transactions for the partner (paginated, filterable)." },
+    { id: "wire-transaction-detail", m: "GET", path: "/v1/payout/bankwire/transaction/{orderId}", label: "Get Payout Transaction", desc: "Fetch a single bank-wire payout transaction by its order id." },
   ]},
   { id: "Fiat Wallets", items: [
     { id: "fiat-list", m: "GET", path: "/v1/fiat-wallets", label: "List Fiat Wallets", desc: "List all fiat wallet balances for the partner." },
@@ -3172,6 +3191,1103 @@ const FW_APPROVE_SPEC: EndpointSpec = {
   ts: "await client.tickets.approveFiatWithdrawal(\"<fwTicketID>\", { final_approval: true });",
 };
 
+// --- Bank Wire (Day 9) -----------------------------------------------------
+// Cross-border fiat payout rail under /v1/payout/bankwire/*. The read/lookup
+// and estimated-quote endpoints were live-verified against the sandbox on
+// 2026-07-03. The bindable quote + submitOrder chain requires a KYC-approved
+// end-user with a whitelisted bank/wallet, so their success bodies are
+// modelled on the estimated-quote breakdown + Swagger schemas and flagged.
+//
+// Two casing quirks confirmed live (flag at review): `transferType` is
+// case-sensitive UPPERCASE — must be "BANK" or "WALLET" (lowercase → 400
+// EN-VAL-021 "Invalid transfer type"); `coin` is UPPERCASE too — "USDT" /
+// "USDC" (lowercase → 400 EN-VAL-022 "Invalid coin"). Only stablecoins price.
+
+const WIRE_TRANSFER_ERR: EndpointErrorRow = { status: "400", code: "EN-VAL-021", desc: 'Invalid transfer type. transferType is case-sensitive and must be "BANK" or "WALLET".' };
+const WIRE_COIN_ERR: EndpointErrorRow = { status: "400", code: "EN-VAL-022", desc: 'Invalid coin. coin is case-sensitive UPPERCASE; only stablecoins (USDT, USDC) are priced for payouts.' };
+const WIRE_USER_ERR: EndpointErrorRow = { status: "404", code: "EN-DATA-007", desc: "The userEmail does not match an end-user created under this partner." };
+const WIRE_NO_BANK_ERR: EndpointErrorRow = { status: "422", code: "EN-VAL-020", desc: "The user has no whitelisted bank account for this destination. Whitelist a beneficiary account first." };
+
+const WIRE_SUPPORTED_COUNTRIES_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Note the response key is misspelled suppportedCountriesCode (triple-p) in the live API — kept verbatim below. Sandbox supports Kenya only.",
+  queryParams: [
+    { name: "countryName", req: "*", type: "string", desc: "Destination country name to check (e.g. Kenya)." },
+    { name: "productType", req: "*", type: "string", desc: "Payout product to filter by (e.g. bankAccount, wallet)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.supportedCountries", type: "string[]", desc: "Supported destination country names." },
+    { name: "data.suppportedCountriesCode", type: "string[]", desc: "ISO alpha-2 codes for the supported countries (note the triple-p key typo in the live API)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "supportedCountries": ["Kenya"],
+    "suppportedCountriesCode": ["KE"]
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/supportedcountries?countryName=Kenya&productType=bankAccount" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.supportedCountries({ countryName: "Kenya", productType: "bankAccount" });\n// data.supportedCountries -> ["Kenya"]',
+};
+
+const WIRE_SUPPORTED_CURRENCIES_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). data is a flat array of receiving-currency codes for the country.",
+  queryParams: [
+    { name: "countryName", type: "string", desc: "Destination country name to scope the currency list (e.g. Kenya). Optional." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data", type: "string[]", desc: "Receiving currency codes available for the country." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": ["KES"]
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/supportedcurrencies?countryName=Kenya" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.supportedCurrencies({ countryName: "Kenya" });\n// data -> ["KES"]',
+};
+
+const WIRE_FXRATE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). fxDetail.fees carries the standard and express fee tiers. transferType must be UPPERCASE (BANK/WALLET) and coin UPPERCASE (USDT/USDC).",
+  queryParams: [
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination fiat currency (e.g. KES)." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country code (e.g. KE)." },
+    { name: "transferType", type: "string", desc: 'Payout rail — "BANK" or "WALLET" (case-sensitive).' },
+    { name: "coin", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT). Only stablecoins price." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "fxDetail.fxRate", type: "number", desc: "Coin→receiving-currency exchange rate." },
+    { name: "fxDetail.fees.standard", type: "number", desc: "Standard payout fee (in coin units)." },
+    { name: "fxDetail.fees.express", type: "number", desc: "Express payout fee (in coin units)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Successfully fetched the quote",
+  "fxDetail": {
+    "fxRate": 128.934,
+    "fees": { "standard": 1.8, "express": 2.1 }
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_COIN_ERR, authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/fxrate?receivingCurrency=KES&receivingCountry=KE&transferType=BANK&coin=USDT" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { fxDetail } = await client.bankwire.fxRate({\n  receivingCurrency: "KES",\n  receivingCountry: "KE",\n  transferType: "BANK",\n  coin: "USDT",\n});\n// fxDetail.fxRate -> 128.934',
+};
+
+const WIRE_WALLET_CODES_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 404 EN-DATA-036 (no wallet providers seeded for KE), so the 200 body below is modelled on the provider-list shape — verify field names against a country that has providers before publishing.",
+  queryParams: [
+    { name: "countryCode", req: "*", type: "string", desc: "ISO alpha-2 destination country code (e.g. KE)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data", type: "object[]", desc: "Mobile-wallet providers available in the country (name + code)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": [
+    { "walletProviderName": "M-PESA", "walletProviderCode": "MPESA" }
+  ]
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "EN-DATA-036", desc: "No wallet provider is configured for the requested country. Body info: \"No wallet provider found for <countryCode>\"." },
+  ],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/walletCodes?countryCode=KE" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.walletCodes({ countryCode: "KE" });\n// data -> [{ walletProviderName, walletProviderCode }]',
+};
+
+const WIRE_BANK_LIST_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 404 EN-DATA-024 (bank list not loaded for KE), so the 200 body is modelled on the paginated bank-list shape — verify against a country with a loaded bank list before publishing.",
+  queryParams: [
+    { name: "countryCode", req: "*", type: "string", desc: "ISO alpha-2 destination country code (e.g. KE)." },
+    { name: "limit", type: "number", desc: "Page size. Optional." },
+    { name: "page", type: "number", desc: "1-based page number. Optional." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.list", type: "object[]", desc: "Banks supported in the country (name + bank code)." },
+    { name: "data.total", type: "number", desc: "Total banks available across all pages." },
+    { name: "data.hasMore", type: "boolean", desc: "Whether further pages exist." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "list": [
+      { "bankName": "Equity Bank", "bankcode": "68" }
+    ],
+    "total": 1,
+    "count": 1,
+    "hasMore": false,
+    "thisPage": 1,
+    "nextPage": null,
+    "lastPage": 1
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "EN-DATA-024", desc: "The bank list could not be loaded for the country. Body info: \"Failed to load banks for <countryCode>. Please contact operations\"." },
+  ],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/banklist?countryCode=KE&limit=20&page=1" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.bankList({ countryCode: "KE", limit: 20, page: 1 });\n// data.list -> [{ bankName, bankcode }]',
+};
+
+const WIRE_BANK_LIST_BY_NAME_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 400 EN-UNS-003 (vendor does not cover KE bank search), so the 200 body is modelled — verify against a supported corridor before publishing.",
+  queryParams: [
+    { name: "countryCode", req: "*", type: "string", desc: "ISO alpha-2 destination country code (e.g. KE)." },
+    { name: "currencyCode", req: "*", type: "string", desc: "Receiving currency code (e.g. KES)." },
+    { name: "name", req: "*", type: "string", desc: "Full or partial bank name to search for." },
+    { name: "bankcode", type: "string", desc: "Optional bank code to narrow the match." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data", type: "object[]", desc: "Matching banks (name + code + optional sub-code)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": [
+    { "bankName": "Equity Bank", "bankcode": "68", "banksubcode": "000" }
+  ]
+}`,
+  errFields: [
+    authErr,
+    { status: "400", code: "EN-UNS-003", desc: "The country is not supported by the bank-search vendor. Body info: \"Country not supported by vendor. Please contact operations\"." },
+  ],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/banklistbyname?countryCode=KE&currencyCode=KES&name=Equity" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.bankListByName({\n  countryCode: "KE",\n  currencyCode: "KES",\n  name: "Equity",\n});',
+};
+
+const WIRE_VERIFY_BENEFICIARY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Request shape from the Swagger schema; live sandbox validates every field (missing banksubcode → 400 EN-DATA-009 \"banksubcode must be a string\"). The 200 body is modelled — verify against a supported corridor before publishing.",
+  reqFields: [
+    { name: "bnv", req: "*", type: "string", desc: "Beneficiary name for verification (name on the account)." },
+    { name: "country", req: "*", type: "string", desc: "ISO alpha-2 destination country code (e.g. KE)." },
+    { name: "transferType", req: "*", type: "string", desc: 'Payout rail — "BANK" or "WALLET" (case-sensitive).' },
+    { name: "bankAccountNumber", type: "string", desc: "Beneficiary bank account number (bank transfers)." },
+    { name: "msisdn", type: "string", desc: "Beneficiary mobile number (wallet transfers)." },
+    { name: "beneficiaryBankName", type: "string", desc: "Beneficiary bank name." },
+    { name: "bankcode", type: "string", desc: "Bank code for the beneficiary bank." },
+    { name: "banksubcode", type: "string", desc: "Bank sub/branch code. Required by the validator even when empty." },
+    { name: "provider", type: "string", desc: "Wallet provider code (wallet transfers)." },
+  ],
+  requestJson: `{
+  "bnv": "Jane Doe",
+  "country": "KE",
+  "transferType": "BANK",
+  "bankAccountNumber": "1234567890",
+  "beneficiaryBankName": "Equity Bank",
+  "bankcode": "68",
+  "banksubcode": "000"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.verified", type: "boolean", desc: "Whether the beneficiary details resolve to a valid account." },
+    { name: "data.accountName", type: "string", desc: "Account holder name returned by the rail, when available." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "verified": true,
+    "accountName": "JANE DOE"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "EN-DATA-009", desc: 'A field failed validation, e.g. "banksubcode must be a string". All bank fields are validated even when a wallet transfer is intended.' },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/verifybenificiary \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "bnv": "Jane Doe", "country": "KE", "transferType": "BANK", "bankAccountNumber": "1234567890", "beneficiaryBankName": "Equity Bank", "bankcode": "68", "banksubcode": "000" }'`,
+  ts: 'const { data } = await client.bankwire.verifyBeneficiary({\n  bnv: "Jane Doe",\n  country: "KE",\n  transferType: "BANK",\n  bankAccountNumber: "1234567890",\n  beneficiaryBankName: "Equity Bank",\n  bankcode: "68",\n  banksubcode: "000",\n});',
+};
+
+const WIRE_EST_QUOTE_BY_AMOUNT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Indicative only — no quoteId is issued and no user/whitelist is required. estimatedReturns gives the coin quantity needed to deliver the target receiving amount.",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency (e.g. USD)." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency (e.g. KES)." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country (e.g. KE)." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country (e.g. US)." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee (e.g. OUR)." },
+    { name: "amount", req: "*", type: "number", desc: "Target amount to be received by the beneficiary." },
+    { name: "userEmail", req: "*", type: "string", desc: "End-user email to scope pricing to." },
+  ],
+  requestJson: `{
+  "coin": "USDT",
+  "transferType": "BANK",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "feeType": "OUR",
+  "amount": 100,
+  "userEmail": "user@partner.com"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "estimatedReturns.receivingAmount", type: "number", desc: "Amount the beneficiary receives (echoes the requested amount)." },
+    { name: "estimatedReturns.coinQuantityCharged", type: "number", desc: "Coin quantity the sender is charged to deliver it." },
+    { name: "estimatedReturns.fxRate", type: "number", desc: "Applied coin→currency FX rate." },
+    { name: "estimatedReturns.bankWireFee", type: "number", desc: "Payout fee (in coin units)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Successfully retrieved estimated quote",
+  "estimatedReturns": {
+    "receivingAmount": 100,
+    "coinQuantityCharged": 2.5755906122512293,
+    "fxRate": 128.934,
+    "bankWireFee": 1.8
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_COIN_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/estimatedquotebyamount \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "USDT", "transferType": "BANK", "sendingCurrency": "USD", "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCountry": "US", "feeType": "OUR", "amount": 100, "userEmail": "user@partner.com" }'`,
+  ts: 'const { estimatedReturns } = await client.bankwire.estimatedQuoteByAmount({\n  coin: "USDT",\n  transferType: "BANK",\n  sendingCurrency: "USD",\n  receivingCurrency: "KES",\n  receivingCountry: "KE",\n  sendingCountry: "US",\n  feeType: "OUR",\n  amount: 100,\n  userEmail: "user@partner.com",\n});\n// estimatedReturns.coinQuantityCharged -> 2.575...',
+};
+
+const WIRE_EST_QUOTE_BY_QUANTITY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Indicative only — mirror of the by-amount estimate, but you fix the coin quantity and it returns the receivingAmount (as a string).",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency (e.g. USD)." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency (e.g. KES)." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country (e.g. KE)." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country (e.g. US)." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee (e.g. OUR)." },
+    { name: "quantity", req: "*", type: "number", desc: "Fixed coin quantity to send." },
+    { name: "userEmail", req: "*", type: "string", desc: "End-user email to scope pricing to." },
+  ],
+  requestJson: `{
+  "coin": "USDT",
+  "transferType": "BANK",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "feeType": "OUR",
+  "quantity": 100,
+  "userEmail": "user@partner.com"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.receivingAmount", type: "string", desc: "Amount the beneficiary receives (returned as a string)." },
+    { name: "quote.coinQuantityCharged", type: "number", desc: "Coin quantity charged (echoes the requested quantity)." },
+    { name: "quote.fxRate", type: "number", desc: "Applied coin→currency FX rate." },
+    { name: "quote.bankWireFee", type: "number", desc: "Payout fee (in coin units)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Successfully retrieved estimated quote",
+  "quote": {
+    "receivingAmount": "12661.32",
+    "coinQuantityCharged": 100,
+    "fxRate": 128.934,
+    "bankWireFee": 1.8
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_COIN_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/estimatedquotebyquantity \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "USDT", "transferType": "BANK", "sendingCurrency": "USD", "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCountry": "US", "feeType": "OUR", "quantity": 100, "userEmail": "user@partner.com" }'`,
+  ts: 'const { quote } = await client.bankwire.estimatedQuoteByQuantity({\n  coin: "USDT",\n  transferType: "BANK",\n  sendingCurrency: "USD",\n  receivingCurrency: "KES",\n  receivingCountry: "KE",\n  sendingCountry: "US",\n  feeType: "OUR",\n  quantity: 100,\n  userEmail: "user@partner.com",\n});\n// quote.receivingAmount -> "12661.32"',
+};
+
+const WIRE_QUOTE_BY_AMOUNT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Binding quote. Requires a KYC-approved end-user with a whitelisted beneficiary — sandbox returned 422 EN-VAL-020 (no whitelisted bank account) and 404 EN-DATA-007 (unknown user). The 200 body is modelled on the estimated-quote breakdown plus the quoteId consumed by submitOrder — verify against a fully onboarded user before publishing.",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user the payout is sent on behalf of." },
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "recipientRelationship", req: "*", type: "string", desc: "Sender's relationship to the recipient (e.g. self, family)." },
+    { name: "remittancePurpose", req: "*", type: "string", desc: "Reason for the transfer (e.g. familySupport)." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "msisdn", req: "*", type: "string", desc: "Beneficiary contact mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary account number (must be whitelisted for the user)." },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency (e.g. USD)." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency (e.g. KES)." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country (e.g. KE)." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country (e.g. US)." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee (e.g. OUR)." },
+    { name: "amount", req: "*", type: "number", desc: "Target amount to be received by the beneficiary." },
+    { name: "transactionType", req: "*", type: "string", desc: "Transaction category (e.g. p2p)." },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: "Declared source of the sender's funds (e.g. Salary)." },
+    { name: "sender_msisdn", req: "*", type: "string", desc: "Sender's mobile number." },
+    { name: "receiver_msisdn", req: "*", type: "string", desc: "Receiver's mobile number." },
+    { name: "receiver_firstName", req: "*", type: "string", desc: "Receiver's first name." },
+    { name: "receiver_lastName", req: "*", type: "string", desc: "Receiver's last name." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "coin": "USDT",
+  "recipientRelationship": "self",
+  "remittancePurpose": "familySupport",
+  "transferType": "BANK",
+  "msisdn": "+254700123456",
+  "accountNo": "1234567890",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "feeType": "OUR",
+  "amount": 100,
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "sender_msisdn": "+254700123456",
+  "receiver_msisdn": "+254700000001",
+  "receiver_firstName": "John",
+  "receiver_lastName": "Mwangi"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Locked quote id to pass to POST submitOrder/bank." },
+    { name: "data.receivingAmount", type: "number", desc: "Amount the beneficiary receives." },
+    { name: "data.coinQuantityCharged", type: "number", desc: "Coin quantity the sender is charged." },
+    { name: "data.fxRate", type: "number", desc: "Applied coin→currency FX rate." },
+    { name: "data.bankWireFee", type: "number", desc: "Payout fee (in coin units)." },
+    { name: "data.expiresAt", type: "string", desc: "ISO 8601 expiry after which the quote must be re-fetched." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "quoteId": "507f1f77bcf86cd799439011",
+    "receivingAmount": 100,
+    "coinQuantityCharged": 2.5755906122512293,
+    "fxRate": 128.934,
+    "bankWireFee": 1.8,
+    "expiresAt": "2026-07-03T12:05:00Z"
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_USER_ERR, WIRE_NO_BANK_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/quotebyamount \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "coin": "USDT", "transferType": "BANK", "amount": 100, "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCurrency": "USD", "sendingCountry": "US", "feeType": "OUR", "accountNo": "1234567890", "msisdn": "+254700123456", "recipientRelationship": "self", "remittancePurpose": "familySupport", "transactionType": "p2p", "sourceOfFunds": "Salary", "sender_msisdn": "+254700123456", "receiver_msisdn": "+254700000001", "receiver_firstName": "John", "receiver_lastName": "Mwangi" }'`,
+  ts: 'const { data } = await client.bankwire.quoteByAmount({ /* full payload */ });\n// pass data.quoteId to submitOrder/bank',
+};
+
+const WIRE_QUOTE_BY_QUANTITY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Binding quote by fixed coin quantity — same requirements and shape as quote-by-amount (needs a KYC'd user with a whitelisted beneficiary). The 200 body is modelled; verify against a fully onboarded user before publishing.",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user the payout is sent on behalf of." },
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "recipientRelationship", req: "*", type: "string", desc: "Sender's relationship to the recipient." },
+    { name: "remittancePurpose", req: "*", type: "string", desc: "Reason for the transfer." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "msisdn", req: "*", type: "string", desc: "Beneficiary contact mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary account number (whitelisted)." },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee." },
+    { name: "quantity", req: "*", type: "number", desc: "Fixed coin quantity to send." },
+    { name: "transactionType", req: "*", type: "string", desc: "Transaction category (e.g. p2p)." },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: "Declared source of funds." },
+    { name: "sender_msisdn", req: "*", type: "string", desc: "Sender's mobile number." },
+    { name: "receiver_msisdn", req: "*", type: "string", desc: "Receiver's mobile number." },
+    { name: "receiver_firstName", req: "*", type: "string", desc: "Receiver's first name." },
+    { name: "receiver_lastName", req: "*", type: "string", desc: "Receiver's last name." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "coin": "USDT",
+  "recipientRelationship": "self",
+  "remittancePurpose": "familySupport",
+  "transferType": "BANK",
+  "msisdn": "+254700123456",
+  "accountNo": "1234567890",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "feeType": "OUR",
+  "quantity": 100,
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "sender_msisdn": "+254700123456",
+  "receiver_msisdn": "+254700000001",
+  "receiver_firstName": "John",
+  "receiver_lastName": "Mwangi"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Locked quote id to pass to POST submitOrder/bank." },
+    { name: "data.receivingAmount", type: "number", desc: "Amount the beneficiary receives for the fixed quantity." },
+    { name: "data.coinQuantityCharged", type: "number", desc: "Coin quantity charged (echoes quantity)." },
+    { name: "data.fxRate", type: "number", desc: "Applied coin→currency FX rate." },
+    { name: "data.bankWireFee", type: "number", desc: "Payout fee (in coin units)." },
+    { name: "data.expiresAt", type: "string", desc: "ISO 8601 quote expiry." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "quoteId": "507f1f77bcf86cd799439011",
+    "receivingAmount": 12661.32,
+    "coinQuantityCharged": 100,
+    "fxRate": 128.934,
+    "bankWireFee": 1.8,
+    "expiresAt": "2026-07-03T12:05:00Z"
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_USER_ERR, WIRE_NO_BANK_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/quotebyquantity \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "coin": "USDT", "transferType": "BANK", "quantity": 100, "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCurrency": "USD", "sendingCountry": "US", "feeType": "OUR", "accountNo": "1234567890", "msisdn": "+254700123456", "recipientRelationship": "self", "remittancePurpose": "familySupport", "transactionType": "p2p", "sourceOfFunds": "Salary", "sender_msisdn": "+254700123456", "receiver_msisdn": "+254700000001", "receiver_firstName": "John", "receiver_lastName": "Mwangi" }'`,
+  ts: 'const { data } = await client.bankwire.quoteByQuantity({ /* full payload */ });\n// pass data.quoteId to submitOrder/bank',
+};
+
+const WIRE_QUOTE_BY_AMOUNT_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 quote by receiving amount. The v2 quote body drops the sender/receiver identity fields — those move to the v2 submit-order call. Requires a KYC'd user with a whitelisted beneficiary; the 200 body is modelled and flagged.",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user the payout is sent on behalf of." },
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "recipientRelationship", req: "*", type: "string", desc: "Sender's relationship to the recipient." },
+    { name: "remittancePurpose", req: "*", type: "string", desc: "Reason for the transfer." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "msisdn", req: "*", type: "string", desc: "Beneficiary contact mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary account number (whitelisted)." },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee." },
+    { name: "amount", req: "*", type: "number", desc: "Target amount to be received by the beneficiary." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "coin": "USDT",
+  "recipientRelationship": "self",
+  "remittancePurpose": "familySupport",
+  "transferType": "BANK",
+  "msisdn": "+254700123456",
+  "accountNo": "1234567890",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "feeType": "OUR",
+  "amount": 100
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Locked quote id to pass to POST submitOrder/bank/v2." },
+    { name: "data.receivingAmount", type: "number", desc: "Amount the beneficiary receives." },
+    { name: "data.coinQuantityCharged", type: "number", desc: "Coin quantity the sender is charged." },
+    { name: "data.fxRate", type: "number", desc: "Applied coin→currency FX rate." },
+    { name: "data.bankWireFee", type: "number", desc: "Payout fee (in coin units)." },
+    { name: "data.expiresAt", type: "string", desc: "ISO 8601 quote expiry." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "quoteId": "507f1f77bcf86cd799439011",
+    "receivingAmount": 100,
+    "coinQuantityCharged": 2.5755906122512293,
+    "fxRate": 128.934,
+    "bankWireFee": 1.8,
+    "expiresAt": "2026-07-03T12:05:00Z"
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_USER_ERR, WIRE_NO_BANK_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/quotebyamount/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "coin": "USDT", "transferType": "BANK", "amount": 100, "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCurrency": "USD", "sendingCountry": "US", "feeType": "OUR", "accountNo": "1234567890", "msisdn": "+254700123456", "recipientRelationship": "self", "remittancePurpose": "familySupport" }'`,
+  ts: 'const { data } = await client.bankwire.quoteByAmountV2({ /* payload */ });\n// pass data.quoteId to submitOrder/bank/v2',
+};
+
+const WIRE_QUOTE_BY_QUANTITY_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 quote by fixed coin quantity. Like quote-by-amount/v2, sender/receiver identity fields move to the v2 submit call. Requires a KYC'd user with a whitelisted beneficiary; the 200 body is modelled and flagged.",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user the payout is sent on behalf of." },
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "recipientRelationship", req: "*", type: "string", desc: "Sender's relationship to the recipient." },
+    { name: "remittancePurpose", req: "*", type: "string", desc: "Reason for the transfer." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "msisdn", req: "*", type: "string", desc: "Beneficiary contact mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary account number (whitelisted)." },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee." },
+    { name: "quantity", req: "*", type: "number", desc: "Fixed coin quantity to send." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "coin": "USDT",
+  "recipientRelationship": "self",
+  "remittancePurpose": "familySupport",
+  "transferType": "BANK",
+  "msisdn": "+254700123456",
+  "accountNo": "1234567890",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "feeType": "OUR",
+  "quantity": 100
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Locked quote id to pass to POST submitOrder/bank/v2." },
+    { name: "data.receivingAmount", type: "number", desc: "Amount the beneficiary receives for the fixed quantity." },
+    { name: "data.coinQuantityCharged", type: "number", desc: "Coin quantity charged (echoes quantity)." },
+    { name: "data.fxRate", type: "number", desc: "Applied coin→currency FX rate." },
+    { name: "data.bankWireFee", type: "number", desc: "Payout fee (in coin units)." },
+    { name: "data.expiresAt", type: "string", desc: "ISO 8601 quote expiry." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "quoteId": "507f1f77bcf86cd799439011",
+    "receivingAmount": 12661.32,
+    "coinQuantityCharged": 100,
+    "fxRate": 128.934,
+    "bankWireFee": 1.8,
+    "expiresAt": "2026-07-03T12:05:00Z"
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_USER_ERR, WIRE_NO_BANK_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/quotebyquantity/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "coin": "USDT", "transferType": "BANK", "quantity": 100, "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCurrency": "USD", "sendingCountry": "US", "feeType": "OUR", "accountNo": "1234567890", "msisdn": "+254700123456", "recipientRelationship": "self", "remittancePurpose": "familySupport" }'`,
+  ts: 'const { data } = await client.bankwire.quoteByQuantityV2({ /* payload */ });\n// pass data.quoteId to submitOrder/bank/v2',
+};
+
+const WIRE_SUBMIT_BANK_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Confirms a locked quoteId from quotebyamount/quotebyquantity and submits the bank payout. Modelled from the Swagger schema; the success body is not live-fired (needs a valid, unexpired quote against a whitelisted account) — verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "Quote id returned by the matching quote call." },
+    { name: "transactionType", req: "*", type: "string", desc: "Transaction category (e.g. p2p)." },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: "Declared source of the sender's funds." },
+    { name: "sender_msisdn", req: "*", type: "string", desc: "Sender's mobile number." },
+    { name: "receiver_msisdn", req: "*", type: "string", desc: "Receiver's mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary bank account number (whitelisted)." },
+    { name: "receiver_firstName", req: "*", type: "string", desc: "Receiver's first name." },
+    { name: "receiver_lastName", req: "*", type: "string", desc: "Receiver's last name." },
+  ],
+  requestJson: `{
+  "quoteId": "507f1f77bcf86cd799439011",
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "sender_msisdn": "+254700123456",
+  "receiver_msisdn": "+254700000001",
+  "accountNo": "1234567890",
+  "receiver_firstName": "John",
+  "receiver_lastName": "Mwangi"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created payout order id — track it via GET transaction/{orderId}." },
+    { name: "data.status", type: "string", desc: "Initial order status (e.g. PROCESSING)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_8Kd2mQ9fLb",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "EN-VAL-019", desc: "The quoteId is invalid or has expired. Re-fetch a quote and submit again." },
+    authErr,
+    WIRE_NO_BANK_ERR,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/submitOrder/bank \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "507f1f77bcf86cd799439011", "transactionType": "p2p", "sourceOfFunds": "Salary", "sender_msisdn": "+254700123456", "receiver_msisdn": "+254700000001", "accountNo": "1234567890", "receiver_firstName": "John", "receiver_lastName": "Mwangi" }'`,
+  ts: 'const { data } = await client.bankwire.submitBankOrder({\n  quoteId: "507f1f77bcf86cd799439011",\n  transactionType: "p2p",\n  sourceOfFunds: "Salary",\n  sender_msisdn: "+254700123456",\n  receiver_msisdn: "+254700000001",\n  accountNo: "1234567890",\n  receiver_firstName: "John",\n  receiver_lastName: "Mwangi",\n});',
+};
+
+const WIRE_SUBMIT_WALLET_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Confirms a locked quoteId and submits a mobile-wallet payout. Modelled from the Swagger schema; success body not live-fired — verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "Quote id returned by the matching quote call." },
+    { name: "transactionType", req: "*", type: "string", desc: "Transaction category (e.g. p2p)." },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: "Declared source of the sender's funds." },
+    { name: "sender_msisdn", req: "*", type: "string", desc: "Sender's mobile number." },
+    { name: "receiver_firstName", req: "*", type: "string", desc: "Receiver's first name." },
+    { name: "receiver_lastName", req: "*", type: "string", desc: "Receiver's last name." },
+    { name: "receiver_msisdn", type: "string", desc: "Receiver's wallet mobile number." },
+    { name: "walletProviderName", type: "string", desc: "Mobile-wallet provider name (e.g. M-PESA)." },
+    { name: "walletProviderCode", type: "string", desc: "Mobile-wallet provider code (from walletCodes)." },
+  ],
+  requestJson: `{
+  "quoteId": "507f1f77bcf86cd799439011",
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "sender_msisdn": "+254700123456",
+  "receiver_msisdn": "+254700000001",
+  "walletProviderName": "M-PESA",
+  "walletProviderCode": "MPESA",
+  "receiver_firstName": "John",
+  "receiver_lastName": "Mwangi"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created payout order id — track it via GET transaction/{orderId}." },
+    { name: "data.status", type: "string", desc: "Initial order status (e.g. PROCESSING)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_9Lp3nR0gMc",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "EN-VAL-019", desc: "The quoteId is invalid or has expired. Re-fetch a quote and submit again." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/submitOrder/wallet \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "507f1f77bcf86cd799439011", "transactionType": "p2p", "sourceOfFunds": "Salary", "sender_msisdn": "+254700123456", "receiver_msisdn": "+254700000001", "walletProviderName": "M-PESA", "walletProviderCode": "MPESA", "receiver_firstName": "John", "receiver_lastName": "Mwangi" }'`,
+  ts: 'const { data } = await client.bankwire.submitWalletOrder({ quoteId, transactionType: "p2p", /* ... */ });',
+};
+
+const WIRE_SUBMIT_BANK_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 bank-order confirmation (Swagger provides example values, reproduced below). payment_source defaults to \"auto\". Success body modelled from the v1 submit shape — verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "Quote id from quotebyamount/v2 or quotebyquantity/v2." },
+    { name: "transactionType", req: "*", type: "string", desc: 'Transaction category, e.g. "p2p".' },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: 'Declared source of funds, e.g. "Salary".' },
+    { name: "sender_msisdn", req: "*", type: "string", desc: "Sender's mobile number." },
+    { name: "receiver_msisdn", req: "*", type: "string", desc: "Receiver's mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary bank account number." },
+    { name: "payment_source", type: "string", desc: 'Funding source; defaults to "auto".' },
+  ],
+  requestJson: `{
+  "quoteId": "507f1f77bcf86cd799439011",
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "sender_msisdn": "+254700000000",
+  "receiver_msisdn": "+254700000001",
+  "accountNo": "1234567890",
+  "payment_source": "auto"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created payout order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_7Jc1lP8eKb",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "EN-VAL-019", desc: "The quoteId is invalid or has expired." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/submitOrder/bank/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "507f1f77bcf86cd799439011", "transactionType": "p2p", "sourceOfFunds": "Salary", "sender_msisdn": "+254700000000", "receiver_msisdn": "+254700000001", "accountNo": "1234567890", "payment_source": "auto" }'`,
+  ts: 'const { data } = await client.bankwire.submitBankOrderV2({\n  quoteId: "507f1f77bcf86cd799439011",\n  transactionType: "p2p",\n  sourceOfFunds: "Salary",\n  sender_msisdn: "+254700000000",\n  receiver_msisdn: "+254700000001",\n  accountNo: "1234567890",\n  payment_source: "auto",\n});',
+};
+
+const WIRE_SUBMIT_WALLET_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 wallet-order confirmation (Swagger example values reproduced). Notably terser than v1 — just quoteId, provider, walletNumber. Success body modelled — verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "Quote id from quotebyamount/v2 or quotebyquantity/v2." },
+    { name: "provider", req: "*", type: "string", desc: 'Wallet provider code, e.g. "MPESA".' },
+    { name: "walletNumber", req: "*", type: "string", desc: 'Beneficiary wallet number, e.g. "254700000000".' },
+    { name: "payment_source", type: "string", desc: 'Funding source; defaults to "auto".' },
+  ],
+  requestJson: `{
+  "quoteId": "507f1f77bcf86cd799439011",
+  "provider": "MPESA",
+  "walletNumber": "254700000000",
+  "payment_source": "auto"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created payout order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_6Hb0kO7dJa",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "EN-VAL-019", desc: "The quoteId is invalid or has expired." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/submitOrder/wallet/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "507f1f77bcf86cd799439011", "provider": "MPESA", "walletNumber": "254700000000", "payment_source": "auto" }'`,
+  ts: 'const { data } = await client.bankwire.submitWalletOrderV2({\n  quoteId: "507f1f77bcf86cd799439011",\n  provider: "MPESA",\n  walletNumber: "254700000000",\n  payment_source: "auto",\n});',
+};
+
+const WIRE_SUBMIT_BANK_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: 'Single-call bank payout: quotes and submits in one request with no prior quoteId — the "unstable" suffix reflects that it locks pricing at submit time. Prefer the quote-then-submit flow for predictable FX. Modelled from Swagger; success body not live-fired.',
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user the payout is sent on behalf of." },
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "quantity", req: "*", type: "string", desc: "Coin quantity to send (string)." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "transactionType", req: "*", type: "string", desc: "Transaction category (e.g. p2p)." },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: "Declared source of funds." },
+    { name: "recipientRelationship", req: "*", type: "string", desc: "Sender's relationship to the recipient." },
+    { name: "remittancePurpose", req: "*", type: "string", desc: "Reason for the transfer." },
+    { name: "msisdn", req: "*", type: "string", desc: "Beneficiary contact mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary bank account number." },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country." },
+    { name: "receiver_firstName", req: "*", type: "string", desc: "Receiver's first name." },
+    { name: "receiver_lastName", req: "*", type: "string", desc: "Receiver's last name." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee." },
+    { name: "payment_source", type: "string", desc: "Funding source (optional)." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "coin": "USDT",
+  "quantity": "100",
+  "transferType": "BANK",
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "recipientRelationship": "self",
+  "remittancePurpose": "familySupport",
+  "msisdn": "+254700123456",
+  "accountNo": "1234567890",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "receiver_firstName": "John",
+  "receiver_lastName": "Mwangi",
+  "feeType": "OUR"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created payout order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_5Ga9jN6cI9",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_USER_ERR, WIRE_NO_BANK_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/submitOrder/bank/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "coin": "USDT", "quantity": "100", "transferType": "BANK", "transactionType": "p2p", "sourceOfFunds": "Salary", "recipientRelationship": "self", "remittancePurpose": "familySupport", "msisdn": "+254700123456", "accountNo": "1234567890", "sendingCurrency": "USD", "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCountry": "US", "receiver_firstName": "John", "receiver_lastName": "Mwangi", "feeType": "OUR" }'`,
+  ts: 'const { data } = await client.bankwire.submitBankOrderSingleCall({ /* full payload */ });',
+};
+
+const WIRE_SUBMIT_WALLET_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: 'Single-call wallet payout: quotes and submits in one request with no prior quoteId. Prefer the quote-then-submit flow for predictable FX. Modelled from Swagger; success body not live-fired.',
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user the payout is sent on behalf of." },
+    { name: "coin", req: "*", type: "string", desc: "Settlement coin, UPPERCASE (e.g. USDT)." },
+    { name: "quantity", req: "*", type: "string", desc: "Coin quantity to send (string)." },
+    { name: "transferType", req: "*", type: "string", desc: '"BANK" or "WALLET" (case-sensitive).' },
+    { name: "transactionType", req: "*", type: "string", desc: "Transaction category (e.g. p2p)." },
+    { name: "sourceOfFunds", req: "*", type: "string", desc: "Declared source of funds." },
+    { name: "recipientRelationship", req: "*", type: "string", desc: "Sender's relationship to the recipient." },
+    { name: "remittancePurpose", req: "*", type: "string", desc: "Reason for the transfer." },
+    { name: "msisdn", req: "*", type: "string", desc: "Beneficiary contact mobile number." },
+    { name: "accountNo", req: "*", type: "string", desc: "Beneficiary account reference." },
+    { name: "sendingCurrency", req: "*", type: "string", desc: "Sender-side currency." },
+    { name: "receivingCurrency", req: "*", type: "string", desc: "Destination currency." },
+    { name: "receivingCountry", req: "*", type: "string", desc: "ISO alpha-2 destination country." },
+    { name: "sendingCountry", req: "*", type: "string", desc: "ISO alpha-2 sending country." },
+    { name: "receiver_firstName", req: "*", type: "string", desc: "Receiver's first name." },
+    { name: "receiver_lastName", req: "*", type: "string", desc: "Receiver's last name." },
+    { name: "sender_msisdn", req: "*", type: "string", desc: "Sender's mobile number." },
+    { name: "feeType", req: "*", type: "string", desc: "Who bears the fee." },
+    { name: "receiver_msisdn", type: "string", desc: "Receiver's wallet mobile number." },
+    { name: "walletProviderName", type: "string", desc: "Mobile-wallet provider name." },
+    { name: "walletProviderCode", type: "string", desc: "Mobile-wallet provider code." },
+    { name: "payment_source", type: "string", desc: "Funding source (optional)." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "coin": "USDT",
+  "quantity": "100",
+  "transferType": "WALLET",
+  "transactionType": "p2p",
+  "sourceOfFunds": "Salary",
+  "recipientRelationship": "self",
+  "remittancePurpose": "familySupport",
+  "msisdn": "+254700123456",
+  "accountNo": "254700000000",
+  "sendingCurrency": "USD",
+  "receivingCurrency": "KES",
+  "receivingCountry": "KE",
+  "sendingCountry": "US",
+  "receiver_firstName": "John",
+  "receiver_lastName": "Mwangi",
+  "sender_msisdn": "+254700123456",
+  "receiver_msisdn": "+254700000001",
+  "walletProviderName": "M-PESA",
+  "walletProviderCode": "MPESA",
+  "feeType": "OUR"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404", "422"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created payout order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_4Fz8iM5bH8",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [WIRE_TRANSFER_ERR, WIRE_USER_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/bankwire/submitOrder/wallet/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "coin": "USDT", "quantity": "100", "transferType": "WALLET", "walletProviderCode": "MPESA", "receiver_msisdn": "+254700000001", "receivingCurrency": "KES", "receivingCountry": "KE", "sendingCurrency": "USD", "sendingCountry": "US", "feeType": "OUR", "transactionType": "p2p", "sourceOfFunds": "Salary", "recipientRelationship": "self", "remittancePurpose": "familySupport", "msisdn": "+254700123456", "accountNo": "254700000000", "sender_msisdn": "+254700123456", "receiver_firstName": "John", "receiver_lastName": "Mwangi" }'`,
+  ts: 'const { data } = await client.bankwire.submitWalletOrderSingleCall({ /* full payload */ });',
+};
+
+const WIRE_TRANSACTIONS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Paginated under data.{ list, total, count, hasMore, thisPage, nextPage, lastPage }. Sandbox had no payouts, so list is empty below.",
+  queryParams: [
+    { name: "limit", type: "number", desc: "Page size. Optional." },
+    { name: "page", type: "number", desc: "1-based page number. Optional." },
+    { name: "sort", type: "string", desc: "Sort order for the results. Optional." },
+    { name: "filters", type: "string", desc: "Filter expression to narrow the results. Optional." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.list", type: "object[]", desc: "The page of bank-wire payout transactions." },
+    { name: "data.total", type: "number", desc: "Total transactions across all pages." },
+    { name: "data.count", type: "number", desc: "Number of records on this page." },
+    { name: "data.hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "data.thisPage", type: "number", desc: "Current page number (1-based)." },
+    { name: "data.nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "data.lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "list": [],
+    "total": 0,
+    "count": 0,
+    "hasMore": false,
+    "thisPage": 1,
+    "nextPage": null,
+    "lastPage": 0
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/bankwire/transactions?limit=20&page=1" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.transactions({ limit: 20, page: 1 });\n// data.list -> payout transaction records',
+};
+
+const WIRE_TRANSACTION_DETAIL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Fetch a single payout by order id. Sandbox had no payouts to fetch, so the 200 body is modelled on a single-transaction shape — verify field names against a real payout before publishing.",
+  pathParams: [
+    { name: "orderId", req: "*", type: "string", desc: "Identifier of the payout order (returned by submitOrder)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "The payout order id." },
+    { name: "data.status", type: "string", desc: "Current order status (e.g. PROCESSING, COMPLETED, FAILED)." },
+    { name: "data.receivingAmount", type: "number", desc: "Amount delivered to the beneficiary." },
+    { name: "data.receivingCurrency", type: "string", desc: "Destination currency." },
+    { name: "data.createdAt", type: "string", desc: "ISO 8601 creation timestamp." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "orderId": "bw_ord_8Kd2mQ9fLb",
+    "status": "PROCESSING",
+    "receivingAmount": 12661.32,
+    "receivingCurrency": "KES",
+    "createdAt": "2026-07-03T12:00:00Z"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "EN-DATA-007", desc: "No payout transaction exists with the supplied orderId." },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/payout/bankwire/transaction/<orderId> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.bankwire.transaction("<orderId>");\n// data.status -> "PROCESSING"',
+};
+
 export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "partners-onboarding": ONBOARDING_SPEC,
   "partners-token": TOKEN_SPEC,
@@ -3255,6 +4371,28 @@ export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "tickets-fd-approve": FD_APPROVE_SPEC,
   "tickets-fiat-withdraw": FIAT_WITHDRAW_SPEC,
   "tickets-fw-approve": FW_APPROVE_SPEC,
+  // Bank Wire (Day 9) — /v1/payout/bankwire/*
+  "wire-supported-countries": WIRE_SUPPORTED_COUNTRIES_SPEC,
+  "wire-supported-currencies": WIRE_SUPPORTED_CURRENCIES_SPEC,
+  "wire-fxrate": WIRE_FXRATE_SPEC,
+  "wire-wallet-codes": WIRE_WALLET_CODES_SPEC,
+  "wire-bank-list": WIRE_BANK_LIST_SPEC,
+  "wire-bank-list-by-name": WIRE_BANK_LIST_BY_NAME_SPEC,
+  "wire-verify-beneficiary": WIRE_VERIFY_BENEFICIARY_SPEC,
+  "wire-est-quote-by-amount": WIRE_EST_QUOTE_BY_AMOUNT_SPEC,
+  "wire-est-quote-by-quantity": WIRE_EST_QUOTE_BY_QUANTITY_SPEC,
+  "wire-quote-by-amount": WIRE_QUOTE_BY_AMOUNT_SPEC,
+  "wire-quote-by-quantity": WIRE_QUOTE_BY_QUANTITY_SPEC,
+  "wire-quote-by-amount-v2": WIRE_QUOTE_BY_AMOUNT_V2_SPEC,
+  "wire-quote-by-quantity-v2": WIRE_QUOTE_BY_QUANTITY_V2_SPEC,
+  "wire-submit-bank": WIRE_SUBMIT_BANK_SPEC,
+  "wire-submit-wallet": WIRE_SUBMIT_WALLET_SPEC,
+  "wire-submit-bank-v2": WIRE_SUBMIT_BANK_V2_SPEC,
+  "wire-submit-wallet-v2": WIRE_SUBMIT_WALLET_V2_SPEC,
+  "wire-submit-bank-unstable": WIRE_SUBMIT_BANK_UNSTABLE_SPEC,
+  "wire-submit-wallet-unstable": WIRE_SUBMIT_WALLET_UNSTABLE_SPEC,
+  "wire-transactions": WIRE_TRANSACTIONS_SPEC,
+  "wire-transaction-detail": WIRE_TRANSACTION_DETAIL_SPEC,
 };
 
 export const REQUEST_JSON = `{
