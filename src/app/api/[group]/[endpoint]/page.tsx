@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   API_GROUPS,
@@ -6,8 +7,9 @@ import {
   endpointById,
   groupForEndpoint,
   specFor,
+  nextEndpoint,
 } from "@/data/api";
-import { ApiGrid } from "@/components/ApiGrid";
+import { ApiSidebar } from "@/components/ApiSidebar";
 import { TryItConsole } from "@/components/TryItConsole";
 import { MethodBadge, MONO, OSWALD } from "@/components/primitives";
 import { DEBUGGING } from "@/lib/debug";
@@ -75,10 +77,12 @@ export default async function ApiEndpointPage({
   const ae = endpointById(endpoint);
   const groupName = found!.grp.id;
   const spec = specFor(endpoint);
+  const next = nextEndpoint(endpoint);
 
   return (
     <div style={{ background: "var(--c-bg)" }}>
-      <ApiGrid>
+      <div className="ed-api-grid" style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr) 400px", maxWidth: "1640px", margin: "0 auto", alignItems: "start" }}>
+        <ApiSidebar />
 
         <div style={{ background: "var(--c-surface)", minHeight: "calc(100vh - 64px)" }}>
           <div style={{ maxWidth: "720px", margin: "0 auto", padding: "38px 44px 90px" }}>
@@ -232,11 +236,23 @@ export default async function ApiEndpointPage({
                 </div>
               ))}
             </div>
+
+            {next && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "46px", paddingTop: "26px", borderTop: "1px solid var(--c-border-card)" }}>
+                <Link href={next.href} className="ed-prevnext" style={{ cursor: "pointer", minWidth: "240px", textAlign: "right", padding: "16px 18px", border: "1px solid var(--c-border-card)", borderRadius: "12px", textDecoration: "none" }}>
+                  <div style={{ fontSize: "12px", color: "var(--c-text-muted)" }}>Next endpoint →</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "9px", marginTop: "5px" }}>
+                    <MethodBadge m={next.endpoint.m} />
+                    <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--c-heading)" }}>{next.endpoint.label}</span>
+                  </div>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
         <TryItConsole endpoint={ae} />
-      </ApiGrid>
+      </div>
     </div>
   );
 }

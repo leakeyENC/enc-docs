@@ -154,7 +154,7 @@
 
 /* ---- Responsive (ported verbatim; class names preserved) ---- */
 @media(max-width:1240px){
-  .ed-api-grid{grid-template-columns:var(--api-sidebar-w,300px) minmax(0,1fr) !important;}
+  .ed-api-grid{grid-template-columns:300px minmax(0,1fr) !important;}
   .ed-rail{grid-column:1 / -1 !important;position:static !important;height:auto !important;max-height:none !important;border-left:none !important;border-top:1px solid var(--c-border) !important;}
 }
 @media(max-width:1080px){

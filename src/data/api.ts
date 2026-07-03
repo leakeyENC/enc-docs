@@ -7094,6 +7094,19 @@ export function groupForEndpoint(id: string): ApiGroup {
 /** The default endpoint shown when entering the API section. */
 export const DEFAULT_ENDPOINT = API_GROUPS[0].items[0];
 
+/** The endpoint that follows the given one in reading order (across groups),
+ *  plus its reference-page href. Returns null for the very last endpoint. */
+export function nextEndpoint(
+  id: string,
+): { endpoint: ApiEndpoint; group: string; href: string } | null {
+  const flat: { e: ApiEndpoint; g: ApiGroup }[] = [];
+  for (const g of API_GROUPS) for (const e of g.items) flat.push({ e, g });
+  const idx = flat.findIndex((x) => x.e.id === id);
+  if (idx < 0 || idx + 1 >= flat.length) return null;
+  const { e, g } = flat[idx + 1];
+  return { endpoint: e, group: g.id, href: `/api/${groupSlug(g.id)}/${e.id}` };
+}
+
 /**
  * Resolve a raw API path (and optional method) to its endpoint reference page,
  * e.g. ("GET", "/v1/partners/accountInfo") -> "/api/partners/partners-account-info".
