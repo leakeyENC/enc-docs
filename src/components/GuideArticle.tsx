@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { MONO, OSWALD } from "./primitives";
-import { SERVICES } from "@/data/api";
+import { SERVICES, endpointHref } from "@/data/api";
 import type { Block, GuideContent } from "@/data/guide-content";
 import type { GuideNavLink } from "@/data/guides";
 
@@ -110,7 +110,7 @@ function EndpointRefBand({ method, path, note }: { method: string; path: string;
         <div style={{ fontFamily: OSWALD, fontWeight: 600, fontSize: "18px", color: "var(--c-cta-band-text)" }}>Ready to call the endpoint?</div>
         <div style={{ fontSize: "14px", color: "var(--c-cta-band-sub)", marginTop: "3px" }}>{note ?? "See the full request & response in the API Reference."}</div>
       </div>
-      <Link href="/api" style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: "8px", height: "42px", padding: "0 22px", background: "#E8B419", color: "#0A1A4F", fontWeight: 600, fontSize: "14.5px", borderRadius: "22px", textDecoration: "none" }}>
+      <Link href={endpointHref(path, method)} style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: "8px", height: "42px", padding: "0 22px", background: "#E8B419", color: "#0A1A4F", fontWeight: 600, fontSize: "14.5px", borderRadius: "22px", textDecoration: "none" }}>
         <span style={{ fontFamily: MONO, fontSize: "11px", background: "#0A1A4F", color: "#E8B419", padding: "2px 7px", borderRadius: "5px" }}>{method}</span>
         <span style={{ fontFamily: MONO, fontSize: "12.5px" }}>{path}</span> →
       </Link>

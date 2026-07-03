@@ -7093,3 +7093,23 @@ export function groupForEndpoint(id: string): ApiGroup {
 
 /** The default endpoint shown when entering the API section. */
 export const DEFAULT_ENDPOINT = API_GROUPS[0].items[0];
+
+/**
+ * Resolve a raw API path (and optional method) to its endpoint reference page,
+ * e.g. ("GET", "/v1/partners/accountInfo") -> "/api/partners/partners-account-info".
+ * Prefers an exact method+path match (some paths carry both a GET and a POST),
+ * then falls back to path-only, then to the API Reference landing page.
+ */
+export function endpointHref(path: string, method?: string): string {
+  if (method) {
+    for (const g of API_GROUPS) {
+      const exact = g.items.find((e) => e.path === path && e.m === method);
+      if (exact) return `/api/${groupSlug(g.id)}/${exact.id}`;
+    }
+  }
+  for (const g of API_GROUPS) {
+    const byPath = g.items.find((e) => e.path === path);
+    if (byPath) return `/api/${groupSlug(g.id)}/${byPath.id}`;
+  }
+  return "/api";
+}
