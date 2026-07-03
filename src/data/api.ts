@@ -75,8 +75,29 @@ export const API_GROUPS: ApiGroup[] = [
     { id: "partners-admin-get-provider", m: "GET", path: "/v1/partners/admin/providerconfig", label: "Get Provider Config", desc: "List payout provider configurations (admin role required)." },
   ]},
   { id: "Tickets", items: [
-    { id: "tickets-create", m: "POST", path: "/v1/tickets", label: "Create Ticket", desc: "Open a new order ticket for a buy or sell flow." },
-    { id: "tickets-get", m: "GET", path: "/v1/tickets/{id}", label: "Get Ticket", desc: "Fetch the current status and details of a ticket." },
+    { id: "tickets-orderinfo-buy", m: "GET", path: "/v1/tickets/orderinfo/buy/{orderID}", label: "Get Buy Order Info", desc: "Fetch the details of a single buy order by its order id." },
+    { id: "tickets-orderinfo-sell", m: "GET", path: "/v1/tickets/orderinfo/sell/{orderID}", label: "Get Sell Order Info", desc: "Fetch the details of a single sell order by its order id." },
+    { id: "tickets-orderinfo-all", m: "GET", path: "/v1/tickets/orderinfo/fetchAll/orders", label: "List All Orders", desc: "List every buy and sell order on the partner account." },
+    { id: "tickets-crypto-balance-all", m: "GET", path: "/v1/tickets/crypto/balance", label: "Get All Crypto Balances", desc: "Read the partner's balance across all supported crypto assets." },
+    { id: "tickets-crypto-balance", m: "POST", path: "/v1/tickets/crypto/balance", label: "Get Crypto Balance", desc: "Read the partner's balance for a single crypto asset." },
+    { id: "tickets-fiat-balance-all", m: "GET", path: "/v1/tickets/fiat/balance", label: "Get All Fiat Balances", desc: "Read the partner's balance across all supported fiat currencies." },
+    { id: "tickets-fiat-balance", m: "POST", path: "/v1/tickets/fiat/balance", label: "Get Fiat Balance", desc: "Read the partner's balance for a single fiat currency." },
+    { id: "tickets-balance-all", m: "GET", path: "/v1/tickets/balance", label: "Get Combined Balance", desc: "Read all crypto and fiat balances for the partner in one call." },
+    { id: "tickets-crypto-deposits", m: "GET", path: "/v1/tickets/crypto/deposits", label: "List Crypto Deposits", desc: "List the partner's crypto deposit history." },
+    { id: "tickets-fiat-deposits", m: "GET", path: "/v1/tickets/fiat/deposits", label: "List Fiat Deposits", desc: "List the partner's fiat deposit history." },
+    { id: "tickets-crypto-withdrawals", m: "GET", path: "/v1/tickets/crypto/withdrawals", label: "List Crypto Withdrawals", desc: "List the partner's crypto withdrawal history." },
+    { id: "tickets-fiat-withdrawals", m: "GET", path: "/v1/tickets/fiat/withdrawals", label: "List Fiat Withdrawals", desc: "List the partner's fiat withdrawal history." },
+    { id: "tickets-crypto-deposit", m: "POST", path: "/v1/tickets/crypto/deposit", label: "Generate Crypto Deposit Ticket", desc: "Create a crypto deposit (CD) ticket. Step one of the generate-then-approve flow." },
+    { id: "tickets-cd-approve", m: "PATCH", path: "/v1/tickets/cdTicket/finalApproval/{cdTicketID}", label: "Approve Crypto Deposit Ticket", desc: "Final-approve a crypto deposit ticket so the deposit settles." },
+    { id: "tickets-crypto-withdraw", m: "POST", path: "/v1/tickets/crypto/withdraw", label: "Generate Crypto Withdrawal Ticket", desc: "Create a crypto withdrawal (CW) ticket to a whitelisted address." },
+    { id: "tickets-cw-approve", m: "PATCH", path: "/v1/tickets/cwTicket/finalApproval/{cwTicketID}", label: "Approve Crypto Withdrawal Ticket", desc: "Final-approve a crypto withdrawal ticket so the withdrawal settles." },
+    { id: "tickets-fiat-deposit", m: "POST", path: "/v1/tickets/fiat/deposit", label: "Generate Fiat Deposit Ticket", desc: "Create a fiat deposit (FD) ticket. Step one of the generate-then-approve flow." },
+    { id: "tickets-fd-approve", m: "PATCH", path: "/v1/tickets/fdTicket/finalApproval/{fdTicketID}", label: "Approve Fiat Deposit Ticket", desc: "Final-approve a fiat deposit ticket so the deposit settles." },
+    { id: "tickets-fiat-withdraw", m: "POST", path: "/v1/tickets/fiat/withdraw", label: "Generate Fiat Withdrawal Ticket", desc: "Create a fiat withdrawal (FW) ticket to a whitelisted bank account." },
+    { id: "tickets-fw-approve", m: "PATCH", path: "/v1/tickets/fwTicket/finalApproval/{fwTicketID}", label: "Approve Fiat Withdrawal Ticket", desc: "Final-approve a fiat withdrawal ticket so the withdrawal settles." },
+    { id: "tickets-payout-all", m: "GET", path: "/v1/tickets/payout/all", label: "List All Payout Transactions", desc: "List every payout transaction on the partner account." },
+    { id: "tickets-payout-user", m: "GET", path: "/v1/tickets/payout/user", label: "List User Payout Transactions", desc: "List payout transactions belonging to the partner's end users." },
+    { id: "tickets-all", m: "GET", path: "/v1/tickets/all", label: "List All Tickets", desc: "List every ticket on the account, pending or settled, across all four flows." },
   ]},
   { id: "Bank Wire", items: [
     { id: "wire-quote", m: "POST", path: "/v1/bank-wire/quote", label: "Create Wire Quote", desc: "Request a locked quote for an outbound bank wire." },
@@ -2294,6 +2315,863 @@ document=@/path/to/passport.jpg`,
   ts: 'const form = new FormData();\nform.append("userEmail", "jane.doe@example.com");\nform.append("documentName", "PASSPORT");\nform.append("document", fileInput.files[0]);\nawait client.partners.kyc.uploadDocument(form);',
 };
 
+// --- Tickets (balances, order info, deposit history) ----------------------
+// Day 9: live-verified against the sandbox (2026-07-02, all HTTP 200 / real
+// error shapes). Notes below reflect the live envelope quirks, not schema
+// guesses. The balance/orderinfo endpoints return a MINIMAL envelope
+// ({ status, data, message } — no success/code/info); the deposit-history
+// endpoints return the FULL envelope ({ success, status, message, code, info,
+// data }). Flag this inconsistency at the Jul 2 review.
+
+const ORDERINFO_ENUM_ERR = { status: "400", code: "EN-DATA-009", desc: 'The request failed validation — e.g. "coin must be a valid enum value". The coin field is case-sensitive and must be lowercase (btc/eth/usdt/usdc/matic for crypto; usd/eur/gbp for fiat).' };
+
+const ORDERINFO_BUY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified 404 shape (2026-07-02). The sandbox account had no orders, so the 200 body is modelled on the single-order shape — verify field names against a real order before publishing.",
+  pathParams: [
+    { name: "orderID", req: "*", type: "string", desc: "Identifier of the buy order to retrieve." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data", type: "object", desc: "The buy order details." },
+    { name: "message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "orderID": "ord_8Kd2mQ9fLb",
+    "side": "BUY",
+    "status": "Completed",
+    "coin": "USDT",
+    "fiatCurrency": "USD"
+  },
+  "message": "Success, order info was fetched successfully."
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: 'No buy order exists with the supplied orderID. Body: { status: 404, data: { info: "orderinfo", message: "Failed, 404 Not found.... orderID: <orderID>" } }.' },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/orderinfo/buy/<orderID> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'import { Encryptus } from "@encryptus/sdk";\n\n' +
+    "const client = new Encryptus({ env: \"sandbox\", accessToken });\n\n" +
+    "const { data: order } = await client.tickets.getBuyOrder(\"<orderID>\");",
+};
+
+const ORDERINFO_SELL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified 404 shape (2026-07-02). The sandbox account had no orders, so the 200 body is modelled on the single-order shape — verify field names against a real order before publishing.",
+  pathParams: [
+    { name: "orderID", req: "*", type: "string", desc: "Identifier of the sell order to retrieve." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data", type: "object", desc: "The sell order details." },
+    { name: "message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "orderID": "ord_3Xc7TnRa9p",
+    "side": "SELL",
+    "status": "Pending",
+    "coin": "USDT",
+    "fiatCurrency": "USD"
+  },
+  "message": "Success, order info was fetched successfully."
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: 'No sell order exists with the supplied orderID. Body: { status: 404, data: { info: "orderinfo", message: "Failed, 404 Not found.... orderID: <orderID>" } }.' },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/orderinfo/sell/<orderID> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data: order } = await client.tickets.getSellOrder(\"<orderID>\");",
+};
+
+const ORDERINFO_ALL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). When no orders exist, data is null and message explains why — shown below. When orders exist, data holds the order list.",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data", type: "array | null", desc: "Every buy and sell order on the partner account, or null when there are none." },
+    { name: "message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": null,
+  "message": "No buy or sell orders were found."
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/orderinfo/fetchAll/orders \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data: orders } = await client.tickets.listOrders();",
+};
+
+const CRYPTO_BALANCE_ALL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Balances nest under data.info[0].crypto_bal; each entry is { crypto_coins, crypto_curr }. Sandbox seeds 50 of every asset.",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info[].crypto_bal[]", type: "array", desc: "Reserved crypto balances. Each item: crypto_coins (amount) and crypto_curr (asset symbol, e.g. BTC, ETH, USDT, USDC, Matic)." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": [
+      {
+        "crypto_bal": [
+          { "crypto_coins": 50, "crypto_curr": "BTC" },
+          { "crypto_coins": 50, "crypto_curr": "ETH" },
+          { "crypto_coins": 50, "crypto_curr": "USDT" },
+          { "crypto_coins": 50, "crypto_curr": "USDC" },
+          { "crypto_coins": 50, "crypto_curr": "Matic" }
+        ]
+      }
+    ],
+    "message": "Success, crypto balance info was fetched successfully."
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/crypto/balance \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.cryptoBalances();\n// data.info[0].crypto_bal -> [{ crypto_coins, crypto_curr }]",
+};
+
+const CRYPTO_BALANCE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). coin is a case-sensitive lowercase enum; an invalid or missing value returns 400 EN-DATA-009 \"coin must be a valid enum value\".",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Crypto asset to read. Lowercase enum — one of: btc, eth, usdt, usdc, matic." },
+  ],
+  requestJson: `{
+  "coin": "usdt"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info", type: "object", desc: "The balance for the requested coin: { crypto_coins, crypto_curr }." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": { "crypto_coins": 50, "crypto_curr": "USDT" },
+    "message": "Success, crypto balance info was fetched successfully."
+  }
+}`,
+  errFields: [
+    ORDERINFO_ENUM_ERR,
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/tickets/crypto/balance \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "usdt" }'`,
+  ts: "const { data } = await client.tickets.cryptoBalance({ coin: \"usdt\" });",
+};
+
+const FIAT_BALANCE_ALL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Balances nest under data.info[0].fiat_bal; each entry is { fiat_coins, fiat_curr }. Sandbox seeds 100000 of every currency.",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info[].fiat_bal[]", type: "array", desc: "Reserved fiat balances. Each item: fiat_coins (amount) and fiat_curr (ISO code, e.g. USD, EUR, GBP)." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": [
+      {
+        "fiat_bal": [
+          { "fiat_coins": 100000, "fiat_curr": "USD" },
+          { "fiat_coins": 100000, "fiat_curr": "EUR" },
+          { "fiat_coins": 100000, "fiat_curr": "GBP" }
+        ]
+      }
+    ],
+    "message": "Success, fiat balance info was fetched successfully."
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/fiat/balance \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.fiatBalances();\n// data.info[0].fiat_bal -> [{ fiat_coins, fiat_curr }]",
+};
+
+const FIAT_BALANCE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). The request field is named coin even for fiat, and is a case-sensitive lowercase enum; an invalid or missing value returns 400 EN-DATA-009.",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Fiat currency to read. Lowercase enum — one of: usd, eur, gbp. (The field is named coin for both crypto and fiat balance reads.)" },
+  ],
+  requestJson: `{
+  "coin": "usd"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info", type: "object", desc: "The balance for the requested currency: { fiat_coins, fiat_curr }." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": { "fiat_coins": 100000, "fiat_curr": "USD" },
+    "message": "Success, fiat balance info was fetched successfully."
+  }
+}`,
+  errFields: [
+    ORDERINFO_ENUM_ERR,
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/tickets/fiat/balance \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "usd" }'`,
+  ts: "const { data } = await client.tickets.fiatBalance({ coin: \"usd\" });",
+};
+
+const BALANCE_ALL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Unlike the split crypto/fiat reads, the combined endpoint returns one FLAT data.info array mixing fiat entries ({ fiat_coins, fiat_curr }) and crypto entries ({ crypto_coins, crypto_curr }).",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info[]", type: "array", desc: "Flat list of all balances. Fiat entries carry { fiat_coins, fiat_curr }; crypto entries carry { crypto_coins, crypto_curr }." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": [
+      { "fiat_coins": 100000, "fiat_curr": "USD" },
+      { "fiat_coins": 100000, "fiat_curr": "EUR" },
+      { "fiat_coins": 100000, "fiat_curr": "GBP" },
+      { "crypto_coins": 50, "crypto_curr": "BTC" },
+      { "crypto_coins": 50, "crypto_curr": "ETH" },
+      { "crypto_coins": 50, "crypto_curr": "USDT" },
+      { "crypto_coins": 50, "crypto_curr": "USDC" },
+      { "crypto_coins": 50, "crypto_curr": "Matic" }
+    ],
+    "message": "Success, balance info was fetched successfully."
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/balance \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.balances();\n// data.info -> mixed [{ fiat_coins, fiat_curr } | { crypto_coins, crypto_curr }]",
+};
+
+const CRYPTO_DEPOSITS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). This endpoint uses the FULL envelope and paginates: data.info holds { list, total, count, hasMore, thisPage, nextPage, lastPage }. Sandbox had no deposits, so list is empty below.",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "success", type: "boolean", desc: "true on success." },
+    { name: "data.info.list", type: "array", desc: "The page of crypto deposit records." },
+    { name: "data.info.total", type: "number", desc: "Total number of deposits across all pages." },
+    { name: "data.info.count", type: "number", desc: "Number of records on this page." },
+    { name: "data.info.hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "data.info.thisPage", type: "number", desc: "Current page number (1-based)." },
+    { name: "data.info.nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "data.info.lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success! All crypto deposit information has been fetched successfully",
+  "data": {
+    "info": {
+      "list": [],
+      "total": 0,
+      "count": 0,
+      "hasMore": false,
+      "thisPage": 1,
+      "nextPage": null,
+      "lastPage": 0
+    },
+    "message": "Success! All crypto deposit information has been fetched successfully"
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/crypto/deposits \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.cryptoDeposits();\n// data.info -> { list, total, count, hasMore, thisPage, nextPage, lastPage }",
+};
+
+const FIAT_DEPOSITS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Same FULL-envelope, paginated shape as the crypto deposit history: data.info holds { list, total, count, hasMore, thisPage, nextPage, lastPage }.",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "success", type: "boolean", desc: "true on success." },
+    { name: "data.info.list", type: "array", desc: "The page of fiat deposit records." },
+    { name: "data.info.total", type: "number", desc: "Total number of deposits across all pages." },
+    { name: "data.info.count", type: "number", desc: "Number of records on this page." },
+    { name: "data.info.hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "data.info.thisPage", type: "number", desc: "Current page number (1-based)." },
+    { name: "data.info.nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "data.info.lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success! All fiat deposit information has been fetched successfully",
+  "data": {
+    "info": {
+      "list": [],
+      "total": 0,
+      "count": 0,
+      "hasMore": false,
+      "thisPage": 1,
+      "nextPage": null,
+      "lastPage": 0
+    },
+    "message": "Success! All fiat deposit information has been fetched successfully"
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/fiat/deposits \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.fiatDeposits();\n// data.info -> { list, total, count, hasMore, thisPage, nextPage, lastPage }",
+};
+
+// Shared pagination query params for the Tickets list endpoints.
+const TICKETS_PAGE_QUERY: FieldRow[] = [
+  { name: "page", type: "number", desc: "1-based page to fetch. Defaults to 1." },
+  { name: "limit", type: "number", desc: "Records per page." },
+];
+
+const CRYPTO_WITHDRAWALS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Minimal envelope ({ status, data, message }) with pagination under data.info — same paginated shape as the deposit-history reads. Sandbox had no withdrawals, so list is empty below.",
+  queryParams: TICKETS_PAGE_QUERY,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info.list", type: "array", desc: "The page of crypto withdrawal records." },
+    { name: "data.info.total", type: "number", desc: "Total number of withdrawals across all pages." },
+    { name: "data.info.count", type: "number", desc: "Number of records on this page." },
+    { name: "data.info.hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "data.info.thisPage", type: "number", desc: "Current page number." },
+    { name: "data.info.nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "data.info.lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": {
+      "list": [],
+      "total": 0,
+      "count": 0,
+      "hasMore": false,
+      "thisPage": 1,
+      "nextPage": null,
+      "lastPage": 0
+    },
+    "message": "Success, all crypto withdrawals info was fetched successfully."
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/crypto/withdrawals \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.cryptoWithdrawals();\n// data.info -> { list, total, count, hasMore, thisPage, nextPage, lastPage }",
+};
+
+const FIAT_WITHDRAWALS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Same minimal-envelope, paginated shape as the crypto withdrawal history.",
+  queryParams: TICKETS_PAGE_QUERY,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (200)." },
+    { name: "data.info.list", type: "array", desc: "The page of fiat withdrawal records." },
+    { name: "data.info.total", type: "number", desc: "Total number of withdrawals across all pages." },
+    { name: "data.info.count", type: "number", desc: "Number of records on this page." },
+    { name: "data.info.hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "data.info.thisPage", type: "number", desc: "Current page number." },
+    { name: "data.info.nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "data.info.lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "info": {
+      "list": [],
+      "total": 0,
+      "count": 0,
+      "hasMore": false,
+      "thisPage": 1,
+      "nextPage": null,
+      "lastPage": 0
+    },
+    "message": "Success, all fiat withdrawals info was fetched successfully."
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/fiat/withdrawals \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const { data } = await client.tickets.fiatWithdrawals();\n// data.info -> { list, total, count, hasMore, thisPage, nextPage, lastPage }",
+};
+
+const PAYOUT_ALL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Note the quirks: success status is 201 (not 200); the records live in a top-level payoutList (not under data); and the pagination counters live at the top level too. The nextPage/lastPage math is unreliable when limit is supplied — page through with hasMore, not lastPage.",
+  queryParams: TICKETS_PAGE_QUERY,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (201)." },
+    { name: "payoutList", type: "array", desc: "The page of payout transactions (top-level, not wrapped in data)." },
+    { name: "total", type: "number", desc: "Total number of payouts across all pages." },
+    { name: "count", type: "number", desc: "Number of records on this page." },
+    { name: "hasMore", type: "boolean", desc: "Whether further pages exist — the reliable way to paginate." },
+    { name: "thisPage", type: "number", desc: "Current page number." },
+    { name: "nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "payoutList": [],
+  "total": 0,
+  "count": 0,
+  "hasMore": false,
+  "thisPage": 1,
+  "nextPage": null,
+  "lastPage": 0
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/payout/all \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const res = await client.tickets.listAllPayouts();\n// res.payoutList (top-level), res.hasMore, res.nextPage",
+};
+
+const PAYOUT_USER_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Same top-level payoutList + pagination counters as List All Payout Transactions, but this endpoint wraps them in the FULL envelope ({ success, code, info, ... }) and scopes results to the partner's end users. Status is 201.",
+  queryParams: TICKETS_PAGE_QUERY,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "success", type: "boolean", desc: "true on success." },
+    { name: "payoutList", type: "array", desc: "The page of user payout transactions (top-level, not wrapped in data)." },
+    { name: "total", type: "number", desc: "Total number of payouts across all pages." },
+    { name: "count", type: "number", desc: "Number of records on this page." },
+    { name: "hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "thisPage", type: "number", desc: "Current page number." },
+    { name: "nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "Created",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "payoutList": [],
+  "total": 0,
+  "count": 0,
+  "hasMore": false,
+  "thisPage": 1,
+  "nextPage": null,
+  "lastPage": 0
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/payout/user \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const res = await client.tickets.listUserPayouts();\n// res.payoutList (top-level), res.hasMore, res.nextPage",
+};
+
+const TICKETS_ALL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02). Returns the same top-level payoutList shape as the payout lists, status 201. Heads-up: in the sandbox the counters were internally inconsistent (total reported records while count/payoutList were empty, and nextPage/lastPage disagreed) — treat total/nextPage as advisory and paginate with hasMore. Flagged for the API team.",
+  queryParams: TICKETS_PAGE_QUERY,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (201)." },
+    { name: "payoutList", type: "array", desc: "The page of ticket records (top-level, not wrapped in data)." },
+    { name: "total", type: "number", desc: "Reported total number of tickets (see the note — unreliable in sandbox)." },
+    { name: "count", type: "number", desc: "Number of records on this page." },
+    { name: "hasMore", type: "boolean", desc: "Whether further pages exist — the reliable pagination signal." },
+    { name: "thisPage", type: "number", desc: "Current page number." },
+    { name: "nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+    { name: "lastPage", type: "number", desc: "Last available page number." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "payoutList": [],
+  "total": 2,
+  "count": 0,
+  "hasMore": true,
+  "thisPage": 1,
+  "nextPage": 2,
+  "lastPage": 1
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/tickets/all \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: "const res = await client.tickets.listAll();\n// res.payoutList (top-level), res.hasMore",
+};
+
+// --- Tickets: generate + approve flows (mutating) -------------------------
+// Live-fired against the sandbox (2026-07-02). Only fiat/deposit generated
+// cleanly (201). The crypto deposit and both withdrawal generators hang and
+// return 504 in sandbox; the final-approval PATCH returns 500. Those are
+// sandbox infra issues, flagged for the API team — the request contracts and
+// error shapes below are all real.
+
+// Shared final-approval errors (captured live).
+const APPROVAL_BAD_ID_ERR = { status: "403", code: "—", desc: 'The ticket id in the path does not exist. Body: { data: { message: "Provided ticket id doesn\'t exist..." } }.' };
+const APPROVAL_VALIDATION_ERR = { status: "400", code: "EN-DATA-009", desc: 'final_approval is missing or not a boolean. Info: "final_approval should not be empty | final_approval must be a boolean value".' };
+
+const FINAL_APPROVAL_REQ: FieldRow[] = [
+  { name: "final_approval", req: "*", type: "boolean", desc: "Set true to settle the ticket." },
+];
+
+const CRYPTO_DEPOSIT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-02): the sandbox hangs and returns 504 Gateway Timeout for this endpoint (no ticket is persisted) — flagged for the API team. The request contract below is from the schema; the settled shape follows the fiat-deposit pattern ({ status: 201, data: { created, message } }).",
+  reqFields: [
+    { name: "transaction_hash", req: "*", type: "string", desc: "On-chain hash of the incoming deposit transaction." },
+    { name: "received_amt", req: "*", type: "number", desc: "Amount received." },
+    { name: "received_amt_curr", req: "*", type: "string", desc: "Crypto asset received (e.g. USDT)." },
+    { name: "source_address", req: "*", type: "string", desc: "Wallet address the deposit was sent from." },
+  ],
+  requestJson: `{
+  "transaction_hash": "0xabc123...0001",
+  "received_amt": 10,
+  "received_amt_curr": "usdt",
+  "source_address": "0x1111111111111111111111111111111111111111"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "504"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (201)." },
+    { name: "data.created", type: "boolean", desc: "true once the deposit ticket is generated." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": {
+    "created": true,
+    "message": "Success, crypto deposit ticket generated"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "504", code: "—", desc: "Sandbox only — the request times out at the gateway (nginx 504) and no ticket is created. Flagged for the API team." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/tickets/crypto/deposit \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "transaction_hash": "0xabc123...0001",
+    "received_amt": 10,
+    "received_amt_curr": "usdt",
+    "source_address": "0x1111..."
+  }'`,
+  ts: "await client.tickets.generateCryptoDeposit({\n  transaction_hash: \"0xabc123...0001\",\n  received_amt: 10,\n  received_amt_curr: \"usdt\",\n  source_address: \"0x1111...\",\n});",
+};
+
+const CD_APPROVE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified error shapes (2026-07-02). The sandbox had no crypto deposit tickets to approve, so the 403 \"ticket doesn't exist\" path is shown; the 200 body follows the { status, data: { updated, message } } shape returned by the approval flow.",
+  pathParams: [
+    { name: "cdTicketID", req: "*", type: "string", desc: "unq_ref_id of the crypto deposit ticket to approve (from List Crypto Deposits)." },
+  ],
+  reqFields: FINAL_APPROVAL_REQ,
+  requestJson: `{
+  "final_approval": true
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "403"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body." },
+    { name: "data.updated", type: "boolean", desc: "true once the ticket is settled." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "updated": true,
+    "message": "Success, crypto deposit ticket approved"
+  }
+}`,
+  errFields: [APPROVAL_VALIDATION_ERR, authErr, APPROVAL_BAD_ID_ERR],
+  curl: `curl -X PATCH https://sandbox.encryptus.co/v1/tickets/cdTicket/finalApproval/<cdTicketID> \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "final_approval": true }'`,
+  ts: "await client.tickets.approveCryptoDeposit(\"<cdTicketID>\", { final_approval: true });",
+};
+
+const CRYPTO_WITHDRAW_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-02). withdraw_curr is UPPERCASE here (e.g. USDT, BTC) — lowercase returns 400 \"<coin> is not a valid crypto currency\" (note: this differs from the balance endpoints, where coin is lowercase). Once validation passes the sandbox hangs and returns 504 — flagged for the API team.",
+  reqFields: [
+    { name: "destination_address", req: "*", type: "string", desc: "Whitelisted wallet address to send the crypto to." },
+    { name: "withdraw_amt", req: "*", type: "number", desc: "Amount to withdraw." },
+    { name: "withdraw_curr", req: "*", type: "string", desc: "Crypto asset to withdraw. UPPERCASE — e.g. BTC, ETH, USDT, USDC, MATIC." },
+  ],
+  requestJson: `{
+  "destination_address": "0x2222222222222222222222222222222222222222",
+  "withdraw_amt": 5,
+  "withdraw_curr": "USDT"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "504"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (201)." },
+    { name: "data.created", type: "boolean", desc: "true once the withdrawal ticket is generated." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": {
+    "created": true,
+    "message": "Success, crypto withdrawal ticket generated"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: 'withdraw_curr is not a recognised asset. Body: { message: "<coin> is not a valid crypto currency" }. The value must be uppercase.' },
+    authErr,
+    { status: "504", code: "—", desc: "Sandbox only — after validation passes the request times out at the gateway (nginx 504). Flagged for the API team." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/tickets/crypto/withdraw \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "destination_address": "0x2222...",
+    "withdraw_amt": 5,
+    "withdraw_curr": "USDT"
+  }'`,
+  ts: "await client.tickets.generateCryptoWithdrawal({\n  destination_address: \"0x2222...\",\n  withdraw_amt: 5,\n  withdraw_curr: \"USDT\",\n});",
+};
+
+const CW_APPROVE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified error shapes (2026-07-02). No crypto withdrawal tickets existed in sandbox, so the 403 \"ticket doesn't exist\" path is shown; the 200 body follows the { status, data: { updated, message } } shape.",
+  pathParams: [
+    { name: "cwTicketID", req: "*", type: "string", desc: "Identifier of the crypto withdrawal ticket to approve (from List Crypto Withdrawals)." },
+  ],
+  reqFields: FINAL_APPROVAL_REQ,
+  requestJson: `{
+  "final_approval": true
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "403"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body." },
+    { name: "data.updated", type: "boolean", desc: "true once the ticket is settled." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "updated": true,
+    "message": "Success, crypto withdrawal ticket approved"
+  }
+}`,
+  errFields: [APPROVAL_VALIDATION_ERR, authErr, APPROVAL_BAD_ID_ERR],
+  curl: `curl -X PATCH https://sandbox.encryptus.co/v1/tickets/cwTicket/finalApproval/<cwTicketID> \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "final_approval": true }'`,
+  ts: "await client.tickets.approveCryptoWithdrawal(\"<cwTicketID>\", { final_approval: true });",
+};
+
+const FIAT_DEPOSIT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-02) — the one generate endpoint that settles cleanly in sandbox (201). The response does NOT return the ticket id; read it back from List Fiat Deposits, where each record carries unq_ref_id and transc_status: \"pending\". depos_curr accepts either case (usd or USD).",
+  reqFields: [
+    { name: "depos_amt", req: "*", type: "number", desc: "Amount being deposited." },
+    { name: "depos_curr", req: "*", type: "string", desc: "Fiat currency deposited (usd, eur, gbp). Case-insensitive." },
+  ],
+  requestJson: `{
+  "depos_amt": 100,
+  "depos_curr": "usd"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (201)." },
+    { name: "data.created", type: "boolean", desc: "true once the deposit ticket is generated." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": {
+    "created": true,
+    "message": "Success, fiat deposit ticket generated"
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/tickets/fiat/deposit \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "depos_amt": 100, "depos_curr": "usd" }'`,
+  ts: "await client.tickets.generateFiatDeposit({ depos_amt: 100, depos_curr: \"usd\" });\n// then read the new ticket's unq_ref_id from client.tickets.fiatDeposits()",
+};
+
+const FD_APPROVE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-02). Approving a real pending ticket returned 500 { data: { updated: false, message: \"Internal server error!\" } } in sandbox — flagged for the API team. A bad id returns 403; a missing final_approval returns 400. The 200 body below is the intended success shape.",
+  pathParams: [
+    { name: "fdTicketID", req: "*", type: "string", desc: "unq_ref_id of the fiat deposit ticket to approve (from List Fiat Deposits)." },
+  ],
+  reqFields: FINAL_APPROVAL_REQ,
+  requestJson: `{
+  "final_approval": true
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "403", "500"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body." },
+    { name: "data.updated", type: "boolean", desc: "true once the ticket is settled." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "updated": true,
+    "message": "Success, fiat deposit ticket approved"
+  }
+}`,
+  errFields: [
+    APPROVAL_VALIDATION_ERR,
+    authErr,
+    APPROVAL_BAD_ID_ERR,
+    { status: "500", code: "—", desc: 'Sandbox only — approving a valid pending ticket returned { status: 500, data: { updated: false, message: "Internal server error!" } }. Flagged for the API team.' },
+  ],
+  curl: `curl -X PATCH https://sandbox.encryptus.co/v1/tickets/fdTicket/finalApproval/<fdTicketID> \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "final_approval": true }'`,
+  ts: "await client.tickets.approveFiatDeposit(\"<fdTicketID>\", { final_approval: true });",
+};
+
+const FIAT_WITHDRAW_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-02): the sandbox hangs and returns 504 Gateway Timeout — flagged for the API team. The request contract is from the schema. Note the server's validation message reuses the wording \"...is not a valid crypto currency\" for fiat too.",
+  reqFields: [
+    { name: "destination_address", req: "*", type: "string", desc: "Whitelisted bank account (e.g. IBAN) to send the fiat to." },
+    { name: "withdraw_amt", req: "*", type: "number", desc: "Amount to withdraw." },
+    { name: "withdraw_curr", req: "*", type: "string", desc: "Fiat currency to withdraw (USD, EUR, GBP)." },
+  ],
+  requestJson: `{
+  "destination_address": "DE89370400440532013000",
+  "withdraw_amt": 50,
+  "withdraw_curr": "USD"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "504"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body (201)." },
+    { name: "data.created", type: "boolean", desc: "true once the withdrawal ticket is generated." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": {
+    "created": true,
+    "message": "Success, fiat withdrawal ticket generated"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "504", code: "—", desc: "Sandbox only — the request times out at the gateway (nginx 504). Flagged for the API team." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/tickets/fiat/withdraw \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "destination_address": "DE89370400440532013000",
+    "withdraw_amt": 50,
+    "withdraw_curr": "USD"
+  }'`,
+  ts: "await client.tickets.generateFiatWithdrawal({\n  destination_address: \"DE89370400440532013000\",\n  withdraw_amt: 50,\n  withdraw_curr: \"USD\",\n});",
+};
+
+const FW_APPROVE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified error shapes (2026-07-02). No fiat withdrawal tickets existed in sandbox, so the 403 \"ticket doesn't exist\" path is shown; the 200 body follows the { status, data: { updated, message } } shape.",
+  pathParams: [
+    { name: "fwTicketID", req: "*", type: "string", desc: "Identifier of the fiat withdrawal ticket to approve (from List Fiat Withdrawals)." },
+  ],
+  reqFields: FINAL_APPROVAL_REQ,
+  requestJson: `{
+  "final_approval": true
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "403"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status, echoed in the body." },
+    { name: "data.updated", type: "boolean", desc: "true once the ticket is settled." },
+    { name: "data.message", type: "string", desc: "Human-readable result message." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "updated": true,
+    "message": "Success, fiat withdrawal ticket approved"
+  }
+}`,
+  errFields: [APPROVAL_VALIDATION_ERR, authErr, APPROVAL_BAD_ID_ERR],
+  curl: `curl -X PATCH https://sandbox.encryptus.co/v1/tickets/fwTicket/finalApproval/<fwTicketID> \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "final_approval": true }'`,
+  ts: "await client.tickets.approveFiatWithdrawal(\"<fwTicketID>\", { final_approval: true });",
+};
+
 export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "partners-onboarding": ONBOARDING_SPEC,
   "partners-token": TOKEN_SPEC,
@@ -2351,6 +3229,32 @@ export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "partners-admin-add-provider": ADMIN_ADD_PROVIDER_SPEC,
   "partners-admin-update-provider": ADMIN_UPDATE_PROVIDER_SPEC,
   "partners-admin-get-provider": ADMIN_GET_PROVIDER_SPEC,
+  // Tickets (Day 9, batch 1)
+  "tickets-orderinfo-buy": ORDERINFO_BUY_SPEC,
+  "tickets-orderinfo-sell": ORDERINFO_SELL_SPEC,
+  "tickets-orderinfo-all": ORDERINFO_ALL_SPEC,
+  "tickets-crypto-balance-all": CRYPTO_BALANCE_ALL_SPEC,
+  "tickets-crypto-balance": CRYPTO_BALANCE_SPEC,
+  "tickets-fiat-balance-all": FIAT_BALANCE_ALL_SPEC,
+  "tickets-fiat-balance": FIAT_BALANCE_SPEC,
+  "tickets-balance-all": BALANCE_ALL_SPEC,
+  "tickets-crypto-deposits": CRYPTO_DEPOSITS_SPEC,
+  "tickets-fiat-deposits": FIAT_DEPOSITS_SPEC,
+  // Tickets (Day 10, batch 2 — read endpoints)
+  "tickets-crypto-withdrawals": CRYPTO_WITHDRAWALS_SPEC,
+  "tickets-fiat-withdrawals": FIAT_WITHDRAWALS_SPEC,
+  "tickets-payout-all": PAYOUT_ALL_SPEC,
+  "tickets-payout-user": PAYOUT_USER_SPEC,
+  "tickets-all": TICKETS_ALL_SPEC,
+  // Tickets (Day 10, batch 3 — generate + approve, live-fired)
+  "tickets-crypto-deposit": CRYPTO_DEPOSIT_SPEC,
+  "tickets-cd-approve": CD_APPROVE_SPEC,
+  "tickets-crypto-withdraw": CRYPTO_WITHDRAW_SPEC,
+  "tickets-cw-approve": CW_APPROVE_SPEC,
+  "tickets-fiat-deposit": FIAT_DEPOSIT_SPEC,
+  "tickets-fd-approve": FD_APPROVE_SPEC,
+  "tickets-fiat-withdraw": FIAT_WITHDRAW_SPEC,
+  "tickets-fw-approve": FW_APPROVE_SPEC,
 };
 
 export const REQUEST_JSON = `{
