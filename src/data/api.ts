@@ -178,19 +178,25 @@ export const API_GROUPS: ApiGroup[] = [
     { id: "bill-submit-order-unstable", m: "POST", path: "/v1/payout/billpayment/submit-order/unstable", label: "Submit Order (single-call)", desc: "Quote and pay a bill in one call, without a prior quoteId." },
   ]},
   { id: "Webhook", items: [
-    { id: "wh-register", m: "POST", path: "/v1/webhooks", label: "Register Webhook", desc: "Subscribe an endpoint to platform events." },
-    { id: "wh-list", m: "GET", path: "/v1/webhooks", label: "List Webhooks", desc: "List configured webhook subscriptions." },
-    { id: "wh-delete", m: "DELETE", path: "/v1/webhooks/{id}", label: "Delete Webhook", desc: "Remove a webhook subscription." },
+    { id: "wh-register", m: "POST", path: "/v1/webhook/register", label: "Register Webhook", desc: "Subscribe a callback URL to platform topics and events." },
+    { id: "wh-update", m: "POST", path: "/v1/webhook/update", label: "Update Webhook", desc: "Update a webhook's topics, events or callback URL." },
+    { id: "wh-list", m: "GET", path: "/v1/webhook/getwebhooks", label: "List Webhooks", desc: "List configured webhook subscriptions." },
+    { id: "wh-get", m: "GET", path: "/v1/webhook/getwebhooks/{id}", label: "Get Webhook", desc: "Fetch a single webhook subscription by id." },
+    { id: "wh-widget-event", m: "POST", path: "/v1/webhook/new-widget-event", label: "Emit Widget Event", desc: "Publish a widget event to trigger the matching webhook." },
   ]},
   { id: "Liquidity", items: [
-    { id: "liq-quote", m: "GET", path: "/v1/liquidity/quote", label: "Get Liquidity Quote", desc: "Fetch an indicative liquidity quote for a pair." },
+    { id: "liq-pair-price", m: "POST", path: "/v1/quote/pairPrice", label: "Get Pair Price", desc: "Fetch the current price for a coin/fiat pair." },
+    { id: "liq-price-amount", m: "POST", path: "/v1/quote/price", label: "Quote by Amount", desc: "Create a buy/sell quote for a fiat amount." },
+    { id: "liq-price-quantity", m: "POST", path: "/v1/quote/price/quantity", label: "Quote by Quantity", desc: "Create a buy/sell quote for a coin quantity." },
+    { id: "liq-submit-buy", m: "POST", path: "/v1/quote/submitOrderBuy", label: "Submit Buy Order", desc: "Confirm a buy quote and deliver coin to a wallet address." },
+    { id: "liq-submit-sell", m: "POST", path: "/v1/quote/submitOrderSell", label: "Submit Sell Order", desc: "Confirm a sell quote and settle fiat to a bank account." },
   ]},
   { id: "Wallets", items: [
-    { id: "wal-list", m: "GET", path: "/v1/wallets", label: "List Wallets", desc: "List custody wallet addresses and balances." },
-    { id: "wal-transfer", m: "POST", path: "/v1/wallets/transfer", label: "Transfer", desc: "Move assets between custody wallets." },
+    { id: "wal-deposit-address", m: "GET", path: "/v1/getDepositAddress", label: "Get Deposit Address", desc: "Get a custody deposit address for a coin." },
+    { id: "wal-balance", m: "GET", path: "/v1/balance", label: "Get Balance", desc: "Read the custody balance for a coin." },
   ]},
   { id: "TRM", items: [
-    { id: "trm-screen", m: "POST", path: "/v1/trm/screen", label: "Screen Address", desc: "Run a TRM risk screen on a blockchain address." },
+    { id: "trm-screen", m: "POST", path: "/v1/trm/walletscreener", label: "Screen Wallet Address", desc: "Run a TRM risk screen on a blockchain address." },
   ]},
 ];
 
@@ -6297,6 +6303,523 @@ const FW_LINK_VA_BENEFICIARY_SPEC: EndpointSpec = {
   ts: 'await client.fiatWallet.linkVirtualAccountBeneficiary({\n  user_email: "user@partner.com",\n  beneficiary_id: "6596539036991926235",\n  wallet_id: "507f1f77bcf86cd799439011",\n});',
 };
 
+// --- Webhook, Liquidity, Wallets, TRM (Day 10, final) ----------------------
+// The last four categories, completing the API reference.
+//   • Webhook /v1/webhook/* — getwebhooks live-verified (2026-07-03); the
+//     mutating routes modelled from Swagger.
+//   • Wallets /v1/getDepositAddress + /v1/balance — live-fired but returned
+//     empty payloads: this partner lacks the CRYPTOCUSTODYSOL grant, so the
+//     provider returns no address/balance. Documented live shape + flagged.
+//   • Liquidity /v1/quote/* and TRM /v1/trm/walletscreener consistently
+//     returned 502 Bad Gateway in sandbox (services not deployed for this
+//     partner) — modelled from Swagger schemas and flagged.
+// Excluded: the two untagged Swagger routes GET / and GET /cryptorates — both
+// serve the marketing website HTML on the API host (frontend catch-all), not
+// partner JSON APIs, so they are not documented here (cf. the excluded health
+// route).
+
+const WH_REGISTER_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Modelled from the Swagger schema; the register/update mutations were not fired to avoid creating live subscriptions. topics and events are arrays; callbackUrl receives the signed event POSTs.",
+  reqFields: [
+    { name: "topics", req: "*", type: "string[]", desc: "Topic categories to subscribe to (e.g. payout, kyc)." },
+    { name: "events", req: "*", type: "string[]", desc: "Specific events within those topics to receive." },
+    { name: "callbackUrl", req: "*", type: "string", desc: "HTTPS URL that will receive event POSTs." },
+  ],
+  requestJson: `{
+  "topics": ["payout"],
+  "events": ["payout.completed", "payout.failed"],
+  "callbackUrl": "https://example.com/hooks/encryptus"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status echoed in the body." },
+    { name: "message", type: "string", desc: "Result message." },
+    { name: "data.id", type: "string", desc: "Identifier of the created webhook subscription." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Webhook registered successfully",
+  "data": {
+    "id": "wh_8Kd2mQ9fLb",
+    "topics": ["payout"],
+    "events": ["payout.completed", "payout.failed"],
+    "callbackUrl": "https://example.com/hooks/encryptus"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "A required field is missing, or callbackUrl is not a valid HTTPS URL." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/webhook/register \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "topics": ["payout"], "events": ["payout.completed", "payout.failed"], "callbackUrl": "https://example.com/hooks/encryptus" }'`,
+  ts: 'await client.webhooks.register({\n  topics: ["payout"],\n  events: ["payout.completed", "payout.failed"],\n  callbackUrl: "https://example.com/hooks/encryptus",\n});',
+};
+
+const WH_UPDATE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Modelled from the Swagger schema (same body as register). Replaces the subscription's topics, events and callback URL. Not fired.",
+  reqFields: [
+    { name: "topics", req: "*", type: "string[]", desc: "New topic categories to subscribe to." },
+    { name: "events", req: "*", type: "string[]", desc: "New events to receive." },
+    { name: "callbackUrl", req: "*", type: "string", desc: "New HTTPS callback URL." },
+  ],
+  requestJson: `{
+  "topics": ["payout", "kyc"],
+  "events": ["payout.completed", "kyc.approved"],
+  "callbackUrl": "https://example.com/hooks/encryptus"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "message", type: "string", desc: "Result message." },
+    { name: "data.updated", type: "boolean", desc: "Whether the subscription was updated." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Webhook updated successfully",
+  "data": { "updated": true }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "A required field is missing or invalid." },
+    authErr,
+    { status: "404", code: "—", desc: "No webhook subscription exists to update." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/webhook/update \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "topics": ["payout", "kyc"], "events": ["payout.completed", "kyc.approved"], "callbackUrl": "https://example.com/hooks/encryptus" }'`,
+  ts: 'await client.webhooks.update({\n  topics: ["payout", "kyc"],\n  events: ["payout.completed", "kyc.approved"],\n  callbackUrl: "https://example.com/hooks/encryptus",\n});',
+};
+
+const WH_LIST_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Minimal envelope { status, message, data }; data is a flat array of subscriptions. Sandbox had none configured.",
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status echoed in the body (201)." },
+    { name: "message", type: "string", desc: 'Result message ("Successfully fetched hooks!").' },
+    { name: "data", type: "object[]", desc: "Configured webhook subscriptions." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched hooks!",
+  "data": []
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/webhook/getwebhooks \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.webhooks.list();\n// data -> webhook subscriptions',
+};
+
+const WH_GET_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Fetch a single subscription by id. Sandbox had none, so the 200 body is modelled — verify field names against a real subscription before publishing.",
+  pathParams: [
+    { name: "id", req: "*", type: "string", desc: "Identifier of the webhook subscription." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.id", type: "string", desc: "The subscription id." },
+    { name: "data.topics", type: "string[]", desc: "Subscribed topics." },
+    { name: "data.events", type: "string[]", desc: "Subscribed events." },
+    { name: "data.callbackUrl", type: "string", desc: "Configured callback URL." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Successfully fetched hook!",
+  "data": {
+    "id": "wh_8Kd2mQ9fLb",
+    "topics": ["payout"],
+    "events": ["payout.completed", "payout.failed"],
+    "callbackUrl": "https://example.com/hooks/encryptus"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No webhook subscription exists with the supplied id." },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/webhook/getwebhooks/<id> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.webhooks.get("<id>");',
+};
+
+const WH_WIDGET_EVENT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Publishes a widget event so the matching subscribed webhook fires — used to integrate the hosted widget with your backend. Modelled from the Swagger schema; not fired.",
+  reqFields: [
+    { name: "topic", req: "*", type: "string", desc: "Topic the event belongs to." },
+    { name: "event", req: "*", type: "string", desc: "Event name to publish." },
+    { name: "payload", req: "*", type: "object", desc: "Arbitrary event payload delivered to the callback." },
+  ],
+  requestJson: `{
+  "topic": "widget",
+  "event": "widget.order.created",
+  "payload": { "orderId": "ord_8Kd2mQ9fLb" }
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.dispatched", type: "boolean", desc: "Whether the event was dispatched to subscribers." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Event published",
+  "data": { "dispatched": true }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "A required field is missing (topic, event or payload)." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/webhook/new-widget-event \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "topic": "widget", "event": "widget.order.created", "payload": { "orderId": "ord_8Kd2mQ9fLb" } }'`,
+  ts: 'await client.webhooks.emitWidgetEvent({\n  topic: "widget",\n  event: "widget.order.created",\n  payload: { orderId: "ord_8Kd2mQ9fLb" },\n});',
+};
+
+const LIQ_PAIR_PRICE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 502 Bad Gateway for all Liquidity routes (the liquidity service is not deployed for this partner), so request/response are from the Swagger schema and modelled — verify against a live liquidity-enabled account before publishing.",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Crypto asset of the pair (e.g. USDT)." },
+    { name: "fiat", req: "*", type: "string", desc: "Fiat currency of the pair (e.g. USD)." },
+  ],
+  requestJson: `{
+  "coin": "USDT",
+  "fiat": "USD"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "502"],
+  respFields: [
+    { name: "data.coin", type: "string", desc: "Crypto asset quoted." },
+    { name: "data.fiat", type: "string", desc: "Fiat currency quoted." },
+    { name: "data.price", type: "number", desc: "Current price of one coin in the fiat currency." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "OK",
+  "data": {
+    "coin": "USDT",
+    "fiat": "USD",
+    "price": 1.0003
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Unsupported coin or fiat." },
+    authErr,
+    { status: "502", code: "—", desc: "Liquidity service unavailable (observed in sandbox for partners without liquidity access)." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/quote/pairPrice \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "USDT", "fiat": "USD" }'`,
+  ts: 'const { data } = await client.liquidity.pairPrice({ coin: "USDT", fiat: "USD" });\n// data.price -> current price',
+};
+
+const LIQ_PRICE_AMOUNT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 502 (liquidity service not deployed for this partner) — modelled from Swagger. Creates a buy/sell quote for a fiat amount; pass the returned quoteId to submitOrderBuy/Sell.",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Crypto asset to buy or sell." },
+    { name: "fiat", req: "*", type: "string", desc: "Fiat currency of the amount." },
+    { name: "amount", req: "*", type: "number", desc: "Fiat amount to trade." },
+    { name: "type", req: "*", type: "string", desc: 'Order side — "BUY" or "SELL".' },
+  ],
+  requestJson: `{
+  "coin": "USDT",
+  "fiat": "USD",
+  "amount": 100,
+  "type": "BUY"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "502"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Locked quote id — pass to submitOrderBuy/submitOrderSell." },
+    { name: "data.coinQuantity", type: "number", desc: "Coin quantity for the amount." },
+    { name: "data.price", type: "number", desc: "Applied price." },
+    { name: "data.expiresAt", type: "string", desc: "ISO 8601 quote expiry." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "OK",
+  "data": {
+    "quoteId": "507f1f77bcf86cd799439011",
+    "coin": "USDT",
+    "fiat": "USD",
+    "amount": 100,
+    "coinQuantity": 99.97,
+    "price": 1.0003,
+    "type": "BUY",
+    "expiresAt": "2026-07-03T12:05:00Z"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Unsupported pair or invalid type." },
+    authErr,
+    { status: "502", code: "—", desc: "Liquidity service unavailable (observed in sandbox)." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/quote/price \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "USDT", "fiat": "USD", "amount": 100, "type": "BUY" }'`,
+  ts: 'const { data } = await client.liquidity.quoteByAmount({ coin: "USDT", fiat: "USD", amount: 100, type: "BUY" });\n// submit with data.quoteId',
+};
+
+const LIQ_PRICE_QUANTITY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 502 (liquidity service not deployed for this partner) — modelled from Swagger. Same as quote-by-amount but you fix the coin quantity.",
+  reqFields: [
+    { name: "coin", req: "*", type: "string", desc: "Crypto asset to buy or sell." },
+    { name: "fiat", req: "*", type: "string", desc: "Fiat currency to price in." },
+    { name: "quantity", req: "*", type: "number", desc: "Coin quantity to trade." },
+    { name: "type", req: "*", type: "string", desc: 'Order side — "BUY" or "SELL".' },
+  ],
+  requestJson: `{
+  "coin": "USDT",
+  "fiat": "USD",
+  "quantity": 100,
+  "type": "BUY"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "502"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Locked quote id — pass to submitOrderBuy/submitOrderSell." },
+    { name: "data.amount", type: "number", desc: "Fiat amount for the quantity." },
+    { name: "data.price", type: "number", desc: "Applied price." },
+    { name: "data.expiresAt", type: "string", desc: "ISO 8601 quote expiry." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "OK",
+  "data": {
+    "quoteId": "507f1f77bcf86cd799439011",
+    "coin": "USDT",
+    "fiat": "USD",
+    "quantity": 100,
+    "amount": 100.03,
+    "price": 1.0003,
+    "type": "BUY",
+    "expiresAt": "2026-07-03T12:05:00Z"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Unsupported pair or invalid type." },
+    authErr,
+    { status: "502", code: "—", desc: "Liquidity service unavailable (observed in sandbox)." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/quote/price/quantity \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "coin": "USDT", "fiat": "USD", "quantity": 100, "type": "BUY" }'`,
+  ts: 'const { data } = await client.liquidity.quoteByQuantity({ coin: "USDT", fiat: "USD", quantity: 100, type: "BUY" });',
+};
+
+const LIQ_SUBMIT_BUY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 502 (liquidity service not deployed for this partner) — modelled from Swagger. Confirms a buy quote and delivers coin to the given wallet address on the named network.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "Quote id from /quote/price or /quote/price/quantity." },
+    { name: "cointype", req: "*", type: "string", desc: "Coin being bought (e.g. USDT)." },
+    { name: "walletAddress", req: "*", type: "string", desc: "Destination wallet address." },
+    { name: "associated_network", req: "*", type: "string", desc: "Network of the wallet address (e.g. ethereum)." },
+  ],
+  requestJson: `{
+  "quoteId": "507f1f77bcf86cd799439011",
+  "cointype": "USDT",
+  "walletAddress": "0x28C6c06298d514Db089934071355E5743bf21d60",
+  "associated_network": "ethereum"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "502"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created buy order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Buy order submitted",
+  "data": {
+    "orderId": "liq_ord_8Kd2mQ9fLb",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or expired, or the wallet address is malformed for the network." },
+    authErr,
+    { status: "502", code: "—", desc: "Liquidity service unavailable (observed in sandbox)." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/quote/submitOrderBuy \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "507f1f77bcf86cd799439011", "cointype": "USDT", "walletAddress": "0x28C6c06298d514Db089934071355E5743bf21d60", "associated_network": "ethereum" }'`,
+  ts: 'const { data } = await client.liquidity.submitBuy({\n  quoteId: "507f1f77bcf86cd799439011",\n  cointype: "USDT",\n  walletAddress: "0x28C6...",\n  associated_network: "ethereum",\n});',
+};
+
+const LIQ_SUBMIT_SELL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 502 (liquidity service not deployed for this partner) — modelled from Swagger. Confirms a sell quote and settles fiat to the given bank account.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "Quote id from /quote/price or /quote/price/quantity." },
+    { name: "userbankAccNo", req: "*", type: "string", desc: "Whitelisted bank account number to settle fiat to." },
+  ],
+  requestJson: `{
+  "quoteId": "507f1f77bcf86cd799439011",
+  "userbankAccNo": "1234567890"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "502"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created sell order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Sell order submitted",
+  "data": {
+    "orderId": "liq_ord_9Lp3nR0gMc",
+    "status": "PROCESSING"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or expired, or the bank account is not whitelisted." },
+    authErr,
+    { status: "502", code: "—", desc: "Liquidity service unavailable (observed in sandbox)." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/quote/submitOrderSell \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "507f1f77bcf86cd799439011", "userbankAccNo": "1234567890" }'`,
+  ts: 'const { data } = await client.liquidity.submitSell({ quoteId: "507f1f77bcf86cd799439011", userbankAccNo: "1234567890" });',
+};
+
+const WAL_DEPOSIT_ADDRESS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-03) — returns 200 with a nested envelope, but this partner lacks the CRYPTOCUSTODYSOL grant so the provider returns no address (data.data is null). The populated shape is modelled; verify against a custody-enabled account before publishing.",
+  queryParams: [
+    { name: "coin", req: "*", type: "string", desc: "Coin to get a deposit address for (e.g. USDT)." },
+    { name: "user_id", type: "string", desc: "End-user id to scope the address to (optional)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.message", type: "string", desc: "Provider message (\"fetched deposit detail\")." },
+    { name: "data.data", type: "object | null", desc: "Deposit details (address, network, memo) — null when custody is not enabled for the partner." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "message": "fetched deposit detail",
+    "data": {
+      "address": "0x28C6c06298d514Db089934071355E5743bf21d60",
+      "network": "ethereum",
+      "coin": "USDT"
+    }
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/getDepositAddress?coin=USDT" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.wallets.depositAddress({ coin: "USDT" });\n// data.data.address -> deposit address (requires custody grant)',
+};
+
+const WAL_BALANCE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-03) — returns 201 with a nested envelope, but this partner lacks the CRYPTOCUSTODYSOL grant so no balance is returned (data.data is null). The populated shape is modelled; verify against a custody-enabled account before publishing.",
+  queryParams: [
+    { name: "coin", req: "*", type: "string", desc: "Coin to read the balance for (e.g. USDT)." },
+    { name: "user_id", type: "string", desc: "End-user id to scope the balance to (optional)." },
+  ],
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.message", type: "string", desc: "Provider message (\"Fetched deposit detail\")." },
+    { name: "data.data", type: "object | null", desc: "Balance details — null when custody is not enabled for the partner." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "Created",
+  "code": "EN-SUCCESS-001",
+  "info": "Fetched deposit detail",
+  "data": {
+    "message": "Fetched deposit detail",
+    "data": {
+      "coin": "USDT",
+      "balance": 0
+    }
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/balance?coin=USDT" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.wallets.balance({ coin: "USDT" });\n// data.data.balance -> balance (requires custody grant)',
+};
+
+const TRM_SCREEN_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox returned 502 Bad Gateway (the TRM screening service is not deployed for this partner, which is granted QUOTESANDORDERS only — TRM needs the FORENSICS service), so request/response are from the Swagger schema and modelled. Note the request field is spelled asscoiated_network (sic) in the live API. Verify against a FORENSICS-enabled account before publishing.",
+  reqFields: [
+    { name: "walletAddress", req: "*", type: "string", desc: "Blockchain address to screen." },
+    { name: "asscoiated_network", req: "*", type: "string", desc: "Network the address belongs to (e.g. ethereum). Note the misspelled key, kept as the live API expects it." },
+  ],
+  requestJson: `{
+  "walletAddress": "0x28C6c06298d514Db089934071355E5743bf21d60",
+  "asscoiated_network": "ethereum"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "403", "502"],
+  respFields: [
+    { name: "data.riskScore", type: "number", desc: "TRM risk score for the address." },
+    { name: "data.riskLevel", type: "string", desc: "Categorised risk level (e.g. LOW, HIGH)." },
+    { name: "data.flagged", type: "boolean", desc: "Whether the address is flagged." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "OK",
+  "data": {
+    "walletAddress": "0x28C6c06298d514Db089934071355E5743bf21d60",
+    "network": "ethereum",
+    "riskScore": 12,
+    "riskLevel": "LOW",
+    "flagged": false
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Missing walletAddress or asscoiated_network, or an unsupported network." },
+    authErr,
+    { status: "403", code: "EN-AUTH-004", desc: "The partner is not granted the FORENSICS service required for TRM screening." },
+    { status: "502", code: "—", desc: "TRM service unavailable (observed in sandbox for partners without FORENSICS access)." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/trm/walletscreener \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "walletAddress": "0x28C6c06298d514Db089934071355E5743bf21d60", "asscoiated_network": "ethereum" }'`,
+  ts: 'const { data } = await client.trm.screen({\n  walletAddress: "0x28C6c06298d514Db089934071355E5743bf21d60",\n  asscoiated_network: "ethereum",\n});\n// data.riskLevel -> "LOW"',
+};
+
 export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "partners-onboarding": ONBOARDING_SPEC,
   "partners-token": TOKEN_SPEC,
@@ -6453,6 +6976,23 @@ export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "bill-quote-unstable": BILL_QUOTE_UNSTABLE_SPEC,
   "bill-submit-order": BILL_SUBMIT_ORDER_SPEC,
   "bill-submit-order-unstable": BILL_SUBMIT_ORDER_UNSTABLE_SPEC,
+  // Webhook (Day 10) — /v1/webhook/*
+  "wh-register": WH_REGISTER_SPEC,
+  "wh-update": WH_UPDATE_SPEC,
+  "wh-list": WH_LIST_SPEC,
+  "wh-get": WH_GET_SPEC,
+  "wh-widget-event": WH_WIDGET_EVENT_SPEC,
+  // Liquidity (Day 10) — /v1/quote/*
+  "liq-pair-price": LIQ_PAIR_PRICE_SPEC,
+  "liq-price-amount": LIQ_PRICE_AMOUNT_SPEC,
+  "liq-price-quantity": LIQ_PRICE_QUANTITY_SPEC,
+  "liq-submit-buy": LIQ_SUBMIT_BUY_SPEC,
+  "liq-submit-sell": LIQ_SUBMIT_SELL_SPEC,
+  // Wallets (Day 10) — custody
+  "wal-deposit-address": WAL_DEPOSIT_ADDRESS_SPEC,
+  "wal-balance": WAL_BALANCE_SPEC,
+  // TRM (Day 10)
+  "trm-screen": TRM_SCREEN_SPEC,
 };
 
 export const REQUEST_JSON = `{
