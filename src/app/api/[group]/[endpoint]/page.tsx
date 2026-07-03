@@ -62,9 +62,6 @@ const headRow = {
   textTransform: "uppercase" as const,
   fontWeight: 600,
 };
-const chip = (label: string) => (
-  <span key={label} style={{ fontFamily: MONO, fontSize: "13px", fontWeight: 500, padding: "6px 13px", borderRadius: "8px", background: "var(--c-chip-bg)", color: "var(--c-chip-text)" }}>{label}</span>
-);
 
 export default async function ApiEndpointPage({
   params,
@@ -202,7 +199,6 @@ export default async function ApiEndpointPage({
               <span style={{ display: "inline-flex", alignItems: "center", gap: "7px", fontFamily: MONO, fontSize: "13px", fontWeight: 600, padding: "6px 13px", borderRadius: "8px", background: "var(--c-success-bg)", color: "var(--c-success-text)" }}>
                 <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#1F9D63" }} />{spec.successLabel}
               </span>
-              {spec.errorChips.map((c) => chip(c))}
             </div>
             <div style={{ border: "1px solid var(--c-border-card)", borderRadius: "12px", overflow: "hidden", marginBottom: "20px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 2.3fr", ...headRow }}>

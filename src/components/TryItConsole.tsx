@@ -4,7 +4,9 @@ import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { MONO, OSWALD } from "./primitives";
 import { specFor, type ApiEndpoint } from "@/data/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+// Host root only — endpoint paths already include the /v1 prefix.
+const FALLBACK_API_BASE = "https://sandbox-new.encryptus.co";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API_BASE;
 
 export function TryItConsole({ endpoint }: { endpoint: ApiEndpoint }) {
   const spec = useMemo(() => specFor(endpoint.id), [endpoint]);
@@ -47,12 +49,17 @@ export function TryItConsole({ endpoint }: { endpoint: ApiEndpoint }) {
     // stubbed sandbox response (preserves the standalone demo behavior).
     if (API_BASE) {
       try {
+        const hasBody = endpoint.m !== "GET" && endpoint.m !== "DELETE";
+        const isJsonBody = !spec.contentType || spec.contentType.includes("application/json");
         const init: RequestInit = {
           method: endpoint.m,
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": spec.contentType ?? "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
+          ...(hasBody && isJsonBody && spec.requestJson
+            ? { body: spec.requestJson }
+            : {}),
         };
         const res = await fetch(`${API_BASE}${endpoint.path}`, init);
         const text = await res.text();
