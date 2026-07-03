@@ -123,18 +123,59 @@ export const API_GROUPS: ApiGroup[] = [
     { id: "wire-transaction-detail", m: "GET", path: "/v1/payout/bankwire/transaction/{orderId}", label: "Get Payout Transaction", desc: "Fetch a single bank-wire payout transaction by its order id." },
   ]},
   { id: "Fiat Wallets", items: [
-    { id: "fiat-list", m: "GET", path: "/v1/fiat-wallets", label: "List Fiat Wallets", desc: "List all fiat wallet balances for the partner." },
-    { id: "fiat-withdraw", m: "POST", path: "/v1/fiat-wallets/withdraw", label: "Withdraw Fiat", desc: "Withdraw fiat balance to a linked bank account." },
+    { id: "fw-create-wallet", m: "POST", path: "/v1/payin/fiat_wallet/wallets", label: "Create Fiat Wallet", desc: "Create a fiat wallet for a KYC-verified user in a given currency." },
+    { id: "fw-list-wallets", m: "GET", path: "/v1/payin/fiat_wallet/wallets", label: "List Fiat Wallets", desc: "List a user's fiat wallets." },
+    { id: "fw-wallet-balance", m: "GET", path: "/v1/payin/fiat_wallet/wallets/{walletId}/balance", label: "Get Wallet Balance", desc: "Read the balance of a single fiat wallet in a given currency." },
+    { id: "fw-generate-va", m: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/generate", label: "Generate Virtual Account", desc: "Provision a named virtual bank account for a user to receive fiat deposits." },
+    { id: "fw-topup", m: "POST", path: "/v1/payin/fiat_wallet/wallets/{walletId}/topup", label: "Top Up Wallet", desc: "Add funds to a fiat wallet." },
+    { id: "fw-transactions", m: "GET", path: "/v1/payin/fiat_wallet/transactions", label: "List Transactions", desc: "List a user's fiat-wallet transactions with rich filtering." },
+    { id: "fw-transaction-detail", m: "GET", path: "/v1/payin/fiat_wallet/transactions/{identifier}", label: "Get Transaction", desc: "Fetch a single fiat-wallet transaction by identifier." },
+    { id: "fw-va-transactions", m: "GET", path: "/v1/payin/fiat_wallet/virtualaccount/transactions", label: "List Virtual Account Transactions", desc: "List transactions on the user's virtual bank accounts." },
+    { id: "fw-convert-to-crypto", m: "POST", path: "/v1/payin/fiat_wallet/convert-to-crypto", label: "Convert to Crypto", desc: "Convert fiat wallet balance into a target crypto asset." },
+    { id: "fw-sandbox-deposit", m: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/sandbox/deposit", label: "Sandbox: Simulate Deposit", desc: "Sandbox helper to simulate an inbound wire into a virtual account." },
+    { id: "fw-sandbox-authorize", m: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/sandbox/authorize-transaction", label: "Sandbox: Authorize Transaction", desc: "Sandbox helper to approve a pending virtual-account transaction." },
+    { id: "fw-sandbox-deny", m: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/sandbox/deny-transaction", label: "Sandbox: Deny Transaction", desc: "Sandbox helper to reject a pending virtual-account transaction." },
+    { id: "fw-sandbox-cancel", m: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/sandbox/cancel-transaction", label: "Sandbox: Cancel Transaction", desc: "Sandbox helper to cancel a pending virtual-account transaction." },
+    { id: "fw-sandbox-webhook", m: "POST", path: "/v1/payin/fiat_wallet/virtualaccount/sandbox/send-webhook", label: "Sandbox: Send Webhook", desc: "Sandbox helper to replay a virtual-account webhook for a transaction." },
+    { id: "fw-exchange-rates", m: "GET", path: "/v1/payin/fiat_wallet/exchange-rates", label: "Get Exchange Rates", desc: "Fetch exchange rates for supported wallet currencies." },
+    { id: "fw-va-beneficiaries", m: "GET", path: "/v1/payin/fiat_wallet/virtualaccount/beneficiaries", label: "List Virtual Account Beneficiaries", desc: "List beneficiaries available for virtual-account transfers." },
+    { id: "fw-link-va-beneficiary", m: "POST", path: "/v1/payin/fiat_wallet/link-virtualaccount-beneficiary", label: "Link Virtual Account Beneficiary", desc: "Link a virtual-account beneficiary to a user's wallet." },
   ]},
   { id: "Topup", items: [
-    { id: "topup-create", m: "POST", path: "/v1/topup", label: "Create Topup", desc: "Create a crypto top-up request to fund a fiat wallet." },
+    { id: "topup-supported-crypto", m: "GET", path: "/v1/topup/supported-crypto", label: "List Supported Crypto", desc: "List crypto assets accepted to pay for mobile top-ups." },
+    { id: "topup-country-code", m: "GET", path: "/v1/topup/country-code", label: "List Countries", desc: "List countries supported for mobile top-ups with their dialing codes." },
+    { id: "topup-carriers", m: "GET", path: "/v1/topup/carriers", label: "List Carriers", desc: "List mobile carriers available in a country (paginated)." },
+    { id: "topup-mobile-lookup", m: "GET", path: "/v1/topup/mobile/lookup/{mobile}", label: "Lookup Mobile Number", desc: "Detect the carrier and available plans for a mobile number." },
+    { id: "topup-carrier-plans", m: "GET", path: "/v1/topup/carrier/plans", label: "List Carrier Plans", desc: "List top-up products (SKUs) for a carrier." },
+    { id: "topup-quote", m: "POST", path: "/v1/topup/quote", label: "Create Quote", desc: "Create a locked quote for a top-up SKU." },
+    { id: "topup-quote-v2", m: "POST", path: "/v1/topup/quote/v2", label: "Create Quote (v2)", desc: "v2 top-up quote carrying the end-user email." },
+    { id: "topup-quote-unstable", m: "POST", path: "/v1/topup/quote/unstable", label: "Create Quote (unstable)", desc: "Top-up quote variant that prices at submit time." },
+    { id: "topup-submit-order", m: "POST", path: "/v1/topup/submit-order", label: "Submit Order", desc: "Confirm a top-up quote and deliver the airtime." },
+    { id: "topup-submit-order-v2", m: "POST", path: "/v1/topup/submit-order/v2", label: "Submit Order (v2)", desc: "v2 confirm-and-deliver for a top-up quote." },
+    { id: "topup-submit-order-unstable", m: "POST", path: "/v1/topup/submit-order/unstable", label: "Submit Order (single-call)", desc: "Quote and deliver a top-up in one call, without a prior quoteId." },
+    { id: "topup-order-detail", m: "GET", path: "/v1/topup/order/{orderId}", label: "Get Order", desc: "Fetch a single top-up order by id." },
+    { id: "topup-orders", m: "GET", path: "/v1/topup/orders", label: "List Orders", desc: "List the partner's top-up orders." },
   ]},
   { id: "Gift Card", items: [
-    { id: "gift-list", m: "GET", path: "/v1/giftcards", label: "List Gift Cards", desc: "List available gift card products by region." },
-    { id: "gift-redeem", m: "POST", path: "/v1/giftcards/redeem", label: "Redeem Gift Card", desc: "Redeem a gift card into a fiat wallet." },
+    { id: "gift-filters", m: "GET", path: "/v1/payout/giftcard/filters", label: "List Gift Cards", desc: "List available gift-card products, filterable by country, brand and price." },
+    { id: "gift-quote", m: "POST", path: "/v1/payout/giftcard/quote", label: "Create Quote", desc: "Create a locked quote for a gift-card product and denomination." },
+    { id: "gift-quote-unstable", m: "POST", path: "/v1/payout/giftcard/quote/unstable", label: "Create Quote (unstable)", desc: "Gift-card quote variant that prices at submit time." },
+    { id: "gift-quote-v2", m: "POST", path: "/v1/payout/giftcard/quote/v2", label: "Create Quote (v2)", desc: "v2 gift-card quote carrying the end-user email." },
+    { id: "gift-order", m: "POST", path: "/v1/payout/giftcard/order", label: "Create Order", desc: "Confirm a gift-card quote and purchase the card." },
+    { id: "gift-order-v2", m: "POST", path: "/v1/payout/giftcard/order/v2", label: "Create Order (v2)", desc: "v2 confirm-and-purchase for a gift-card quote." },
+    { id: "gift-order-unstable", m: "POST", path: "/v1/payout/giftcard/order/unstable", label: "Create Order (single-call)", desc: "Quote and purchase a gift card in one call, without a prior quoteId." },
+    { id: "gift-order-detail", m: "GET", path: "/v1/payout/giftcard/order/{orderId}", label: "Get Order", desc: "Fetch a single gift-card order (with card codes) by id." },
+    { id: "gift-orders", m: "GET", path: "/v1/payout/giftcard/orders", label: "List Orders", desc: "List the partner's gift-card orders." },
+    { id: "gift-dtone-update", m: "POST", path: "/v1/payout/giftcard/internal/partner/dtone/updateTransaction", label: "Update DTOne Transaction (internal)", desc: "Internal callback for the DTOne provider to update a gift-card transaction." },
   ]},
   { id: "Billpayment", items: [
-    { id: "bill-pay", m: "POST", path: "/v1/billpayment", label: "Pay Bill", desc: "Submit a utility or merchant bill payment." },
+    { id: "bill-filters", m: "GET", path: "/v1/payout/billpayment/filters", label: "List Billers", desc: "List available billers/products, filterable by country and category." },
+    { id: "bill-category", m: "GET", path: "/v1/payout/billpayment/category", label: "List Categories", desc: "List bill categories available in a country." },
+    { id: "bill-operator", m: "GET", path: "/v1/payout/billpayment/operator", label: "List Operators", desc: "List operators for a category in a country." },
+    { id: "bill-quote", m: "POST", path: "/v1/payout/billpayment/quote", label: "Create Quote", desc: "Create a locked quote for a bill payment." },
+    { id: "bill-quote-unstable", m: "POST", path: "/v1/payout/billpayment/quote/unstable", label: "Create Quote (unstable)", desc: "Bill-payment quote variant that prices at submit time." },
+    { id: "bill-submit-order", m: "POST", path: "/v1/payout/billpayment/submit-order", label: "Submit Order", desc: "Confirm a bill-payment quote and pay the biller." },
+    { id: "bill-submit-order-unstable", m: "POST", path: "/v1/payout/billpayment/submit-order/unstable", label: "Submit Order (single-call)", desc: "Quote and pay a bill in one call, without a prior quoteId." },
   ]},
   { id: "Webhook", items: [
     { id: "wh-register", m: "POST", path: "/v1/webhooks", label: "Register Webhook", desc: "Subscribe an endpoint to platform events." },
@@ -4288,6 +4329,1974 @@ const WIRE_TRANSACTION_DETAIL_SPEC: EndpointSpec = {
   ts: 'const { data } = await client.bankwire.transaction("<orderId>");\n// data.status -> "PROCESSING"',
 };
 
+// --- Topup (Day 10) --------------------------------------------------------
+// Airtime / mobile top-up under /v1/topup/*. Live-verified against the sandbox
+// 2026-07-03. Envelope quirk (flag): these routes use a MINIMAL envelope
+// { status, message, data, error } with NO success/code/info, and the body's
+// `status` is often 201 even for GETs. The quote id key is `quoteID` (capital
+// ID) — different from the `quoteId` used everywhere else.
+
+const TOPUP_SUPPORTED_CRYPTO_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Minimal envelope; data is a flat array of accepted coins. Body status is 201.",
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "status", type: "number", desc: "HTTP status echoed in the body (201)." },
+    { name: "data", type: "string[]", desc: "Crypto assets accepted to pay for top-ups." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": ["BTC", "ETH", "USDC", "USDT", "MATIC"]
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/topup/supported-crypto \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.supportedCrypto();\n// data -> ["BTC","ETH","USDC","USDT","MATIC"]',
+};
+
+const TOPUP_COUNTRY_CODE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns every supported country with its ISO code and dialing code(s).",
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data[].countryName", type: "string", desc: "Country name." },
+    { name: "data[].countryCode", type: "string", desc: "ISO alpha-2 country code." },
+    { name: "data[].internationalCountryCode", type: "string[]", desc: "International dialing code(s), e.g. [\"+254\"]." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Ok",
+  "data": [
+    { "countryName": "South Africa", "countryCode": "ZA", "internationalCountryCode": ["+27"] },
+    { "countryName": "Romania", "countryCode": "RO", "internationalCountryCode": ["+40"] }
+  ]
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/topup/country-code \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.countryCodes();\n// data -> [{ countryName, countryCode, internationalCountryCode }]',
+};
+
+const TOPUP_CARRIERS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Paginated under data.{ list, total, count, hasMore, thisPage, nextPage, lastPage }. Body status is 201 even though HTTP is 200.",
+  queryParams: [
+    { name: "countryCode", type: "string", desc: "ISO alpha-2 country code to filter carriers (e.g. KE)." },
+    { name: "page", type: "number", desc: "1-based page number." },
+    { name: "limit", type: "number", desc: "Page size." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.list[].countryCode", type: "string", desc: "ISO alpha-2 country code." },
+    { name: "data.list[].operatorName", type: "string", desc: "Operator name." },
+    { name: "data.list[].carrierName", type: "string", desc: "Carrier name." },
+    { name: "data.total", type: "number", desc: "Total carriers across all pages." },
+    { name: "data.hasMore", type: "boolean", desc: "Whether further pages exist." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Ok",
+  "data": {
+    "list": [
+      { "countryCode": "KE", "operatorName": "Safaricom Kenya", "carrierName": "Safaricom Kenya" }
+    ],
+    "total": 81,
+    "count": 1,
+    "hasMore": true,
+    "thisPage": 1,
+    "nextPage": 2,
+    "lastPage": 27
+  },
+  "error": null
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/topup/carriers?countryCode=KE&limit=20&page=1" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.carriers({ countryCode: "KE", limit: 20, page: 1 });\n// data.list -> [{ countryCode, operatorName, carrierName }]',
+};
+
+const TOPUP_MOBILE_LOOKUP_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-03) — a test number returned 400 \"Please check the phone number and try again!\". The 200 body is modelled on the carrier-detection shape; verify against a real, reachable number before publishing.",
+  pathParams: [
+    { name: "mobile", req: "*", type: "string", desc: "Mobile number in international format (URL-encode the +)." },
+  ],
+  queryParams: [
+    { name: "page", type: "number", desc: "1-based page number for the returned plans." },
+    { name: "limit", type: "number", desc: "Page size for the returned plans." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.operatorName", type: "string", desc: "Detected operator for the number." },
+    { name: "data.carrierName", type: "string", desc: "Detected carrier for the number." },
+    { name: "data.plans", type: "object[]", desc: "Available top-up plans for the detected carrier." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Ok",
+  "data": {
+    "operatorName": "Safaricom Kenya",
+    "carrierName": "Safaricom Kenya",
+    "plans": []
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: 'The number could not be resolved. Body: { status: 400, error: "Bad Request", message: "Please check the phone number and try again!", data: null }.' },
+    authErr,
+  ],
+  curl: `curl "https://sandbox.encryptus.co/v1/topup/mobile/lookup/%2B254700123456" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.lookupMobile("+254700123456");\n// data.carrierName -> detected carrier',
+};
+
+const TOPUP_CARRIER_PLANS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). data is a flat array of top-up SKUs; use skuId when creating a quote. exchangeRate and deliveryCurrencyCode describe the local payout.",
+  queryParams: [
+    { name: "operatorName", type: "string", desc: "Operator to list plans for (e.g. Airtel Kenya)." },
+    { name: "carrierName", type: "string", desc: "Carrier to list plans for." },
+    { name: "countryCode", type: "string", desc: "ISO alpha-2 country code (e.g. KE)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data[].skuId", type: "number", desc: "SKU id to pass to the quote endpoint." },
+    { name: "data[].productName", type: "string", desc: "Human-readable product name (e.g. \"750 KES\")." },
+    { name: "data[].minAmount", type: "number", desc: "Minimum face amount." },
+    { name: "data[].maxAmount", type: "number", desc: "Maximum face amount." },
+    { name: "data[].deliveryCurrencyCode", type: "string", desc: "Currency delivered to the recipient (e.g. KES)." },
+    { name: "data[].operatorName", type: "string", desc: "Operator name." },
+    { name: "data[].carrierName", type: "string", desc: "Carrier name." },
+    { name: "data[].exchangeRate", type: "number", desc: "Local-currency exchange rate used for pricing." },
+    { name: "data[].fee", type: "number", desc: "Fee applied to the top-up." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Ok",
+  "data": [
+    {
+      "skuId": 10111644,
+      "productName": "750 KES",
+      "productDescription": "750 KES",
+      "minAmount": 750,
+      "maxAmount": 750,
+      "category": "Rtr",
+      "countryName": "Kenya",
+      "countryCode": "KE",
+      "operatorName": "Airtel Kenya",
+      "carrierName": "Airtel Kenya",
+      "deliveryCurrencyCode": "KES",
+      "fee": 0,
+      "exchangeRate": 107.913669064748
+    }
+  ]
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/topup/carrier/plans?countryCode=KE&operatorName=Airtel%20Kenya" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.carrierPlans({ countryCode: "KE", operatorName: "Airtel Kenya" });\n// data[0].skuId -> pass to topup.quote',
+};
+
+const TOPUP_QUOTE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns a quote object with quoteID (capital ID) and validUntil — pass quoteID as quoteId to submit-order. coinQuantity is what the sender is charged; localAmount is delivered.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "number", desc: "SKU id from carrier/plans." },
+    { name: "amount", req: "*", type: "number", desc: "Face amount to deliver (within the SKU's min/max)." },
+    { name: "mobile", req: "*", type: "string", desc: "Recipient mobile number in international format." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with (e.g. USDT)." },
+    { name: "operator", req: "*", type: "string", desc: "Operator name (from carrier/plans)." },
+    { name: "carrier", req: "*", type: "string", desc: "Carrier name (from carrier/plans)." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your reference for the end-user placing the top-up." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "country_code", req: "*", type: "string", desc: "ISO alpha-2 country code (e.g. KE)." },
+  ],
+  requestJson: `{
+  "skuId": 10111644,
+  "amount": 750,
+  "mobile": "+254700123456",
+  "cryptoCoin": "USDT",
+  "operator": "Airtel Kenya",
+  "carrier": "Airtel Kenya",
+  "partner_userID": "user@partner.com",
+  "country_code": "KE"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.quoteID", type: "string", desc: "Quote id (capital ID) — pass as quoteId to submit-order." },
+    { name: "quote.coin", type: "string", desc: "Crypto asset charged." },
+    { name: "quote.coinQuantity", type: "number", desc: "Coin quantity the sender is charged." },
+    { name: "quote.amount", type: "number", desc: "Face amount requested." },
+    { name: "quote.localAmount", type: "string", desc: "Amount delivered in the local currency." },
+    { name: "quote.deliveryCurrencyCode", type: "string", desc: "Local delivery currency (e.g. KES)." },
+    { name: "quote.validUntil", type: "string", desc: "ISO 8601 quote expiry." },
+    { name: "quote.profit", type: "number", desc: "Partner margin applied to the quote." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the topup quote!",
+  "quote": {
+    "coin": "USDT",
+    "amount": 750,
+    "coinQuantity": 750.75,
+    "localAmount": "80935.25",
+    "deliveryCurrencyCode": "KES",
+    "quoteID": "88753f06-0c75-49d7-a460-adc7efc98298",
+    "validUntil": "2026-07-03T07:24:33.635Z",
+    "skuId": 10111644,
+    "mobile": "+254700123456",
+    "operator": "Airtel Kenya",
+    "profit": 0.75
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "A field failed validation (e.g. skuId not recognised, amount out of the SKU's min/max range, or unsupported cryptoCoin)." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/topup/quote \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": 10111644, "amount": 750, "mobile": "+254700123456", "cryptoCoin": "USDT", "operator": "Airtel Kenya", "carrier": "Airtel Kenya", "partner_userID": "user@partner.com", "country_code": "KE" }'`,
+  ts: 'const { quote } = await client.topup.quote({\n  skuId: 10111644,\n  amount: 750,\n  mobile: "+254700123456",\n  cryptoCoin: "USDT",\n  operator: "Airtel Kenya",\n  carrier: "Airtel Kenya",\n  partner_userID: "user@partner.com",\n  country_code: "KE",\n});\n// submit with quote.quoteID',
+};
+
+const TOPUP_QUOTE_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 top-up quote — identical to the base quote plus a required userEmail. Success shape matches the live base quote; modelled and flagged.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "number", desc: "SKU id from carrier/plans." },
+    { name: "amount", req: "*", type: "number", desc: "Face amount to deliver." },
+    { name: "mobile", req: "*", type: "string", desc: "Recipient mobile number." },
+    { name: "userEmail", req: "*", type: "string", desc: "End-user email the top-up is on behalf of." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "operator", req: "*", type: "string", desc: "Operator name." },
+    { name: "carrier", req: "*", type: "string", desc: "Carrier name." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your end-user reference." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "country_code", req: "*", type: "string", desc: "ISO alpha-2 country code." },
+  ],
+  requestJson: `{
+  "skuId": 10111644,
+  "amount": 750,
+  "mobile": "+254700123456",
+  "userEmail": "user@partner.com",
+  "cryptoCoin": "USDT",
+  "operator": "Airtel Kenya",
+  "carrier": "Airtel Kenya",
+  "partner_userID": "user@partner.com",
+  "country_code": "KE"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.quoteID", type: "string", desc: "Quote id — pass as quoteId to submit-order/v2." },
+    { name: "quote.coinQuantity", type: "number", desc: "Coin quantity charged." },
+    { name: "quote.localAmount", type: "string", desc: "Amount delivered locally." },
+    { name: "quote.validUntil", type: "string", desc: "ISO 8601 quote expiry." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the topup quote!",
+  "quote": {
+    "coin": "USDT",
+    "amount": 750,
+    "coinQuantity": 750.75,
+    "localAmount": "80935.25",
+    "deliveryCurrencyCode": "KES",
+    "quoteID": "88753f06-0c75-49d7-a460-adc7efc98298",
+    "validUntil": "2026-07-03T07:24:33.635Z",
+    "skuId": 10111644,
+    "mobile": "+254700123456",
+    "operator": "Airtel Kenya",
+    "profit": 0.75
+  }
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/topup/quote/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": 10111644, "amount": 750, "mobile": "+254700123456", "userEmail": "user@partner.com", "cryptoCoin": "USDT", "operator": "Airtel Kenya", "carrier": "Airtel Kenya", "partner_userID": "user@partner.com", "country_code": "KE" }'`,
+  ts: 'const { quote } = await client.topup.quoteV2({ /* payload + userEmail */ });',
+};
+
+const TOPUP_QUOTE_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Unstable quote variant — same body as quote/v2. Pricing is only guaranteed at submit time; prefer the standard quote for a locked rate. Modelled on the live base quote.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "number", desc: "SKU id from carrier/plans." },
+    { name: "amount", req: "*", type: "number", desc: "Face amount to deliver." },
+    { name: "mobile", req: "*", type: "string", desc: "Recipient mobile number." },
+    { name: "userEmail", req: "*", type: "string", desc: "End-user email the top-up is on behalf of." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "operator", req: "*", type: "string", desc: "Operator name." },
+    { name: "carrier", req: "*", type: "string", desc: "Carrier name." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your end-user reference." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "country_code", req: "*", type: "string", desc: "ISO alpha-2 country code." },
+  ],
+  requestJson: `{
+  "skuId": 10111644,
+  "amount": 750,
+  "mobile": "+254700123456",
+  "userEmail": "user@partner.com",
+  "cryptoCoin": "USDT",
+  "operator": "Airtel Kenya",
+  "carrier": "Airtel Kenya",
+  "partner_userID": "user@partner.com",
+  "country_code": "KE"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.quoteID", type: "string", desc: "Quote id — pass as quoteId to submit-order/unstable is not required (that route re-quotes)." },
+    { name: "quote.coinQuantity", type: "number", desc: "Indicative coin quantity (re-priced at submit)." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the topup quote!",
+  "quote": {
+    "coin": "USDT",
+    "amount": 750,
+    "coinQuantity": 750.75,
+    "localAmount": "80935.25",
+    "deliveryCurrencyCode": "KES",
+    "quoteID": "88753f06-0c75-49d7-a460-adc7efc98298",
+    "validUntil": "2026-07-03T07:24:33.635Z",
+    "skuId": 10111644,
+    "mobile": "+254700123456",
+    "operator": "Airtel Kenya",
+    "profit": 0.75
+  }
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/topup/quote/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": 10111644, "amount": 750, "mobile": "+254700123456", "userEmail": "user@partner.com", "cryptoCoin": "USDT", "operator": "Airtel Kenya", "carrier": "Airtel Kenya", "partner_userID": "user@partner.com", "country_code": "KE" }'`,
+  ts: 'const { quote } = await client.topup.quoteUnstable({ /* payload + userEmail */ });',
+};
+
+const TOPUP_SUBMIT_ORDER_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Confirms a quote (pass the quote's quoteID as quoteId) and delivers the airtime. Success body modelled — not live-fired to avoid spending sandbox balance; verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "The quoteID returned by POST /topup/quote." },
+  ],
+  requestJson: `{
+  "quoteId": "88753f06-0c75-49d7-a460-adc7efc98298"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created top-up order id — track it via GET /topup/order/{orderId}." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Topup order submitted successfully",
+  "data": {
+    "orderId": "tp_ord_8Kd2mQ9fLb",
+    "status": "PROCESSING"
+  },
+  "error": null
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or has expired. Re-fetch a quote and submit again." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/topup/submit-order \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "88753f06-0c75-49d7-a460-adc7efc98298" }'`,
+  ts: 'const { data } = await client.topup.submitOrder({ quoteId: "88753f06-..." });',
+};
+
+const TOPUP_SUBMIT_ORDER_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 confirm-and-deliver — same body { quoteId } as the base submit. Pair with quote/v2. Success body modelled — not live-fired.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "The quoteID returned by POST /topup/quote/v2." },
+  ],
+  requestJson: `{
+  "quoteId": "88753f06-0c75-49d7-a460-adc7efc98298"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created top-up order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Topup order submitted successfully",
+  "data": {
+    "orderId": "tp_ord_9Lp3nR0gMc",
+    "status": "PROCESSING"
+  },
+  "error": null
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or has expired." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/topup/submit-order/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "88753f06-0c75-49d7-a460-adc7efc98298" }'`,
+  ts: 'const { data } = await client.topup.submitOrderV2({ quoteId: "88753f06-..." });',
+};
+
+const TOPUP_SUBMIT_ORDER_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Single-call top-up — quotes and delivers in one request with no prior quoteId (prices at submit time). Note it also requires fiatCurrency. Modelled from Swagger; not live-fired.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "number", desc: "SKU id from carrier/plans." },
+    { name: "amount", req: "*", type: "number", desc: "Face amount to deliver." },
+    { name: "mobile", req: "*", type: "string", desc: "Recipient mobile number." },
+    { name: "userEmail", req: "*", type: "string", desc: "End-user email the top-up is on behalf of." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "fiatCurrency", req: "*", type: "string", desc: "Local delivery currency (e.g. KES)." },
+    { name: "operator", req: "*", type: "string", desc: "Operator name." },
+    { name: "carrier", req: "*", type: "string", desc: "Carrier name." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your end-user reference." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "country_code", req: "*", type: "string", desc: "ISO alpha-2 country code." },
+  ],
+  requestJson: `{
+  "skuId": 10111644,
+  "amount": 750,
+  "mobile": "+254700123456",
+  "userEmail": "user@partner.com",
+  "cryptoCoin": "USDT",
+  "fiatCurrency": "KES",
+  "operator": "Airtel Kenya",
+  "carrier": "Airtel Kenya",
+  "partner_userID": "user@partner.com",
+  "country_code": "KE"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created top-up order id." },
+    { name: "data.status", type: "string", desc: "Initial order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Topup order submitted successfully",
+  "data": {
+    "orderId": "tp_ord_7Jc1lP8eKb",
+    "status": "PROCESSING"
+  },
+  "error": null
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation, or pricing changed beyond tolerance at submit." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/topup/submit-order/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": 10111644, "amount": 750, "mobile": "+254700123456", "userEmail": "user@partner.com", "cryptoCoin": "USDT", "fiatCurrency": "KES", "operator": "Airtel Kenya", "carrier": "Airtel Kenya", "partner_userID": "user@partner.com", "country_code": "KE" }'`,
+  ts: 'const { data } = await client.topup.submitOrderSingleCall({ /* full payload */ });',
+};
+
+const TOPUP_ORDER_DETAIL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Fetch a single top-up order by id. Sandbox had no orders, so the 200 body is modelled — verify field names against a real order before publishing.",
+  pathParams: [
+    { name: "orderId", req: "*", type: "string", desc: "Identifier of the top-up order (returned by submit-order)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "The top-up order id." },
+    { name: "data.status", type: "string", desc: "Order status (e.g. PROCESSING, COMPLETED, FAILED)." },
+    { name: "data.mobile", type: "string", desc: "Recipient mobile number." },
+    { name: "data.localAmount", type: "string", desc: "Amount delivered in local currency." },
+    { name: "data.deliveryCurrencyCode", type: "string", desc: "Local delivery currency." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "orderId": "tp_ord_8Kd2mQ9fLb",
+    "status": "COMPLETED",
+    "mobile": "+254700123456",
+    "localAmount": "80935.25",
+    "deliveryCurrencyCode": "KES"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No top-up order exists with the supplied orderId." },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/topup/order/<orderId> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.order("<orderId>");',
+};
+
+const TOPUP_ORDERS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Paginated under data.{ info, total, count, hasMore, thisPage, nextPage, lastPage }. Sandbox had no orders, so info is empty.",
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.info", type: "object[]", desc: "The page of top-up order records." },
+    { name: "data.total", type: "number", desc: "Total orders across all pages." },
+    { name: "data.hasMore", type: "boolean", desc: "Whether further pages exist." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": {
+    "info": [],
+    "total": 0,
+    "count": 0,
+    "hasMore": false,
+    "thisPage": 1,
+    "nextPage": null,
+    "lastPage": 0
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/topup/orders \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.topup.orders();\n// data.info -> top-up order records',
+};
+
+// --- Gift Card (Day 10) ----------------------------------------------------
+// Buy gift-card vouchers with crypto under /v1/payout/giftcard/*. Live-verified
+// 2026-07-03. Minimal envelope { status, data } (no success/code/info). Powered
+// by the DTOne provider — product ids and denominations come from the filters
+// endpoint. Quote id key is `quoteId`.
+
+const GIFT_FILTERS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns available voucher products; call with no country to browse all, or filter. A country with no catalogue returns an empty vouchers array with a success message.",
+  queryParams: [
+    { name: "productName", type: "string", desc: "Filter by product/brand name." },
+    { name: "country", type: "string", desc: "Filter by country name (e.g. united kingdom)." },
+    { name: "price", type: "string", desc: "Filter by exact denomination price." },
+    { name: "minPrice", type: "string", desc: "Minimum denomination price." },
+    { name: "maxPrice", type: "string", desc: "Maximum denomination price." },
+    { name: "currencyCode", type: "string", desc: "Filter by voucher currency (e.g. gbp)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.vouchers[].brand", type: "string", desc: "Voucher brand/product name." },
+    { name: "data.vouchers[].productId", type: "number", desc: "Product id to pass to the quote endpoint." },
+    { name: "data.vouchers[].denominations", type: "string[]", desc: "Available face-value denominations." },
+    { name: "data.vouchers[].countryName", type: "string", desc: "Voucher country." },
+    { name: "data.vouchers[].currencyCode", type: "string", desc: "Voucher currency code." },
+    { name: "data.vouchers[].vouchersImg", type: "string", desc: "Brand logo image URL." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "vouchers": [
+      {
+        "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+        "vouchersImg": "https://operator-logo.dtone.com/logo-46791-1.png",
+        "productId": 10146791,
+        "denominations": ["5"],
+        "countryName": "united kingdom",
+        "currencyCode": "gbp"
+      }
+    ],
+    "message": "Success, here are the available vouchers."
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/giftcard/filters?country=united%20kingdom" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.giftcard.filters({ country: "united kingdom" });\n// data.vouchers[0].productId -> pass to giftcard.quote',
+};
+
+const GIFT_QUOTE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns a quote with quoteId and crypto_amount — pass quoteId to POST /giftcard/order. country/brand/currency come from the filters voucher.",
+  reqFields: [
+    { name: "country", req: "*", type: "string", desc: "Voucher country name (e.g. united kingdom)." },
+    { name: "productId", req: "*", type: "number", desc: "Product id from filters." },
+    { name: "brand", req: "*", type: "string", desc: "Voucher brand from filters." },
+    { name: "denominator", req: "*", type: "string", desc: "Chosen denomination (e.g. 5)." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with (e.g. USDT)." },
+    { name: "selectedFiat", req: "*", type: "string", desc: "Voucher currency (e.g. gbp)." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your reference for the end-user." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "quantity", req: "*", type: "number", desc: "Number of cards to buy." },
+  ],
+  requestJson: `{
+  "country": "united kingdom",
+  "productId": 10146791,
+  "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+  "denominator": "5",
+  "cryptoCoin": "USDT",
+  "selectedFiat": "gbp",
+  "partner_userID": "user@partner.com",
+  "quantity": 1
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.quoteId", type: "string", desc: "Quote id — pass to POST /giftcard/order." },
+    { name: "quote.crypto_amount", type: "number", desc: "Coin quantity the sender is charged." },
+    { name: "quote.fiat_amount", type: "number", desc: "Face value of the card(s)." },
+    { name: "quote.quoteCurrency", type: "string", desc: "Voucher currency." },
+    { name: "quote.coin", type: "string", desc: "Crypto asset charged." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the giftcard quote!",
+  "quote": {
+    "productId": 10146791,
+    "country": "united kingdom",
+    "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+    "denominator": "5",
+    "quoteCurrency": "gbp",
+    "coin": "USDT",
+    "fiat_amount": 5,
+    "crypto_amount": 2.853477765108326,
+    "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "A field failed validation (e.g. productId not recognised, denominator not offered for the product, or unsupported cryptoCoin)." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/quote \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "country": "united kingdom", "productId": 10146791, "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP", "denominator": "5", "cryptoCoin": "USDT", "selectedFiat": "gbp", "partner_userID": "user@partner.com", "quantity": 1 }'`,
+  ts: 'const { quote } = await client.giftcard.quote({ /* payload */ });\n// order with quote.quoteId',
+};
+
+const GIFT_QUOTE_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Unstable gift-card quote — same body as the base quote; pricing guaranteed only at order time. Modelled on the live base quote.",
+  reqFields: [
+    { name: "country", req: "*", type: "string", desc: "Voucher country name." },
+    { name: "productId", req: "*", type: "number", desc: "Product id from filters." },
+    { name: "brand", req: "*", type: "string", desc: "Voucher brand from filters." },
+    { name: "denominator", req: "*", type: "string", desc: "Chosen denomination." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "selectedFiat", req: "*", type: "string", desc: "Voucher currency." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your end-user reference." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "quantity", req: "*", type: "number", desc: "Number of cards to buy." },
+  ],
+  requestJson: `{
+  "country": "united kingdom",
+  "productId": 10146791,
+  "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+  "denominator": "5",
+  "cryptoCoin": "USDT",
+  "selectedFiat": "gbp",
+  "partner_userID": "user@partner.com",
+  "quantity": 1
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.quoteId", type: "string", desc: "Quote id (re-priced at order time)." },
+    { name: "quote.crypto_amount", type: "number", desc: "Indicative coin quantity charged." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the giftcard quote!",
+  "quote": {
+    "productId": 10146791,
+    "country": "united kingdom",
+    "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+    "denominator": "5",
+    "quoteCurrency": "gbp",
+    "coin": "USDT",
+    "fiat_amount": 5,
+    "crypto_amount": 2.853477765108326,
+    "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e"
+  }
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/quote/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "country": "united kingdom", "productId": 10146791, "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP", "denominator": "5", "cryptoCoin": "USDT", "selectedFiat": "gbp", "partner_userID": "user@partner.com", "quantity": 1 }'`,
+  ts: 'const { quote } = await client.giftcard.quoteUnstable({ /* payload */ });',
+};
+
+const GIFT_QUOTE_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 gift-card quote — base quote plus a userEmail. Modelled on the live base quote.",
+  reqFields: [
+    { name: "country", req: "*", type: "string", desc: "Voucher country name." },
+    { name: "productId", req: "*", type: "number", desc: "Product id from filters." },
+    { name: "brand", req: "*", type: "string", desc: "Voucher brand from filters." },
+    { name: "denominator", req: "*", type: "string", desc: "Chosen denomination." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "selectedFiat", req: "*", type: "string", desc: "Voucher currency." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your end-user reference." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "userEmail", type: "string", desc: "End-user email the purchase is on behalf of." },
+    { name: "quantity", req: "*", type: "number", desc: "Number of cards to buy." },
+  ],
+  requestJson: `{
+  "country": "united kingdom",
+  "productId": 10146791,
+  "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+  "denominator": "5",
+  "cryptoCoin": "USDT",
+  "selectedFiat": "gbp",
+  "partner_userID": "user@partner.com",
+  "userEmail": "user@partner.com",
+  "quantity": 1
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "quote.quoteId", type: "string", desc: "Quote id — pass to POST /giftcard/order/v2." },
+    { name: "quote.crypto_amount", type: "number", desc: "Coin quantity charged." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the giftcard quote!",
+  "quote": {
+    "productId": 10146791,
+    "country": "united kingdom",
+    "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+    "denominator": "5",
+    "quoteCurrency": "gbp",
+    "coin": "USDT",
+    "fiat_amount": 5,
+    "crypto_amount": 2.853477765108326,
+    "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e"
+  }
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/quote/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "country": "united kingdom", "productId": 10146791, "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP", "denominator": "5", "cryptoCoin": "USDT", "selectedFiat": "gbp", "partner_userID": "user@partner.com", "userEmail": "user@partner.com", "quantity": 1 }'`,
+  ts: 'const { quote } = await client.giftcard.quoteV2({ /* payload + userEmail */ });',
+};
+
+const GIFT_ORDER_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Confirms a gift-card quote and purchases the card(s). Success body modelled — not live-fired to avoid spending sandbox balance; the card code(s) are returned here and via GET /giftcard/order/{orderId}. Verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "The quoteId returned by POST /giftcard/quote." },
+  ],
+  requestJson: `{
+  "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created gift-card order id." },
+    { name: "data.status", type: "string", desc: "Order status." },
+    { name: "data.cards", type: "object[]", desc: "Purchased card(s) with redemption code/PIN." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Giftcard order placed successfully",
+  "data": {
+    "orderId": "gc_ord_8Kd2mQ9fLb",
+    "status": "COMPLETED",
+    "cards": [
+      { "code": "XXXX-XXXX-XXXX", "pin": "1234" }
+    ]
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or has expired. Re-fetch a quote and order again." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/order \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e" }'`,
+  ts: 'const { data } = await client.giftcard.order({ quoteId: "83a80b4a-..." });\n// data.cards -> [{ code, pin }]',
+};
+
+const GIFT_ORDER_V2_SPEC: EndpointSpec = {
+  auth: true,
+  note: "v2 confirm-and-purchase — same body { quoteId } as the base order. Pair with quote/v2. Success body modelled — not live-fired.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "The quoteId returned by POST /giftcard/quote/v2." },
+  ],
+  requestJson: `{
+  "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created gift-card order id." },
+    { name: "data.cards", type: "object[]", desc: "Purchased card(s) with redemption code/PIN." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Giftcard order placed successfully",
+  "data": {
+    "orderId": "gc_ord_9Lp3nR0gMc",
+    "status": "COMPLETED",
+    "cards": [
+      { "code": "XXXX-XXXX-XXXX", "pin": "1234" }
+    ]
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or has expired." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/order/v2 \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "83a80b4a-ab90-4d3a-a9b9-5895e8fab50e" }'`,
+  ts: 'const { data } = await client.giftcard.orderV2({ quoteId: "83a80b4a-..." });',
+};
+
+const GIFT_ORDER_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Single-call gift-card purchase — quotes and buys in one request with no prior quoteId (prices at buy time). Modelled from Swagger; not live-fired.",
+  reqFields: [
+    { name: "country", req: "*", type: "string", desc: "Voucher country name." },
+    { name: "productId", req: "*", type: "number", desc: "Product id from filters." },
+    { name: "brand", req: "*", type: "string", desc: "Voucher brand from filters." },
+    { name: "denominator", req: "*", type: "string", desc: "Chosen denomination." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "selectedFiat", req: "*", type: "string", desc: "Voucher currency." },
+    { name: "partner_userID", req: "*", type: "string", desc: "Your end-user reference." },
+    { name: "encryptus_userID", type: "string", desc: "Encryptus end-user id, if known." },
+    { name: "userEmail", type: "string", desc: "End-user email the purchase is on behalf of." },
+    { name: "quantity", req: "*", type: "number", desc: "Number of cards to buy." },
+  ],
+  requestJson: `{
+  "country": "united kingdom",
+  "productId": 10146791,
+  "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+  "denominator": "5",
+  "cryptoCoin": "USDT",
+  "selectedFiat": "gbp",
+  "partner_userID": "user@partner.com",
+  "userEmail": "user@partner.com",
+  "quantity": 1
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created gift-card order id." },
+    { name: "data.cards", type: "object[]", desc: "Purchased card(s) with redemption code/PIN." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Giftcard order placed successfully",
+  "data": {
+    "orderId": "gc_ord_7Jc1lP8eKb",
+    "status": "COMPLETED",
+    "cards": [
+      { "code": "XXXX-XXXX-XXXX", "pin": "1234" }
+    ]
+  }
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation, or pricing changed beyond tolerance at buy time." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/order/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "country": "united kingdom", "productId": 10146791, "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP", "denominator": "5", "cryptoCoin": "USDT", "selectedFiat": "gbp", "partner_userID": "user@partner.com", "userEmail": "user@partner.com", "quantity": 1 }'`,
+  ts: 'const { data } = await client.giftcard.orderSingleCall({ /* full payload */ });',
+};
+
+const GIFT_ORDER_DETAIL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Fetch a single gift-card order (including card codes) by id. Sandbox had no orders, so the 200 body is modelled — verify against a real order before publishing.",
+  pathParams: [
+    { name: "orderId", req: "*", type: "string", desc: "Identifier of the gift-card order (returned by /giftcard/order)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "The gift-card order id." },
+    { name: "data.status", type: "string", desc: "Order status." },
+    { name: "data.cards", type: "object[]", desc: "Purchased card(s) with code/PIN." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": {
+    "orderId": "gc_ord_8Kd2mQ9fLb",
+    "status": "COMPLETED",
+    "brand": "Bolt Giftcard UK - Bolt Gift Card 5 GBP",
+    "cards": [
+      { "code": "XXXX-XXXX-XXXX", "pin": "1234" }
+    ]
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No gift-card order exists with the supplied orderId." },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/payout/giftcard/order/<orderId> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.giftcard.getOrder("<orderId>");',
+};
+
+const GIFT_ORDERS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Paginated under data.{ info, total, count, hasMore, thisPage, nextPage, lastPage }. Sandbox had no orders, so info is empty.",
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.info", type: "object[]", desc: "The page of gift-card order records." },
+    { name: "data.total", type: "number", desc: "Total orders across all pages." },
+    { name: "data.hasMore", type: "boolean", desc: "Whether further pages exist." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "data": {
+    "info": [],
+    "total": 0,
+    "count": 0,
+    "hasMore": false,
+    "thisPage": 1,
+    "nextPage": null,
+    "lastPage": 0
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl https://sandbox.encryptus.co/v1/payout/giftcard/orders \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.giftcard.orders();\n// data.info -> gift-card order records',
+};
+
+const GIFT_DTONE_UPDATE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Internal provider callback — DTOne calls this to update a gift-card transaction's status. Not part of the normal partner integration; documented for completeness. Modelled from the Swagger schema; not live-fired.",
+  reqFields: [
+    { name: "transactionId", req: "*", type: "number", desc: "DTOne transaction id being updated." },
+    { name: "status", req: "*", type: "string", desc: "New transaction status." },
+    { name: "pin", type: "string", desc: "Card PIN/code delivered by the provider, when applicable." },
+  ],
+  requestJson: `{
+  "transactionId": 123456,
+  "status": "COMPLETED",
+  "pin": "XXXX-XXXX-XXXX"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.updated", type: "boolean", desc: "Whether the transaction was updated." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "data": { "updated": true }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Unknown transactionId or invalid status." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/giftcard/internal/partner/dtone/updateTransaction \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "transactionId": 123456, "status": "COMPLETED", "pin": "XXXX-XXXX-XXXX" }'`,
+  ts: '// Internal DTOne callback — not typically called by partners.',
+};
+
+// --- Billpayment (Day 10) --------------------------------------------------
+// Pay utility / merchant bills with crypto under /v1/payout/billpayment/*.
+// Live-verified 2026-07-03. Minimal envelope { status, message, data, error }.
+// Each biller declares its own required inputs via `mandatoryFields`
+// [{ Name, Description }]; supply those keys inside `mandatoryDetails` on quote.
+// Quote id key is `quoteId`.
+
+const BILL_FILTERS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Lists billers/products; each voucher's mandatoryFields lists the account inputs you must supply in mandatoryDetails when quoting. Call broadly or filter by country/category.",
+  queryParams: [
+    { name: "countryName", type: "string", desc: "Filter by country name." },
+    { name: "countryCode", type: "string", desc: "Filter by ISO alpha-2 country code (e.g. IN)." },
+    { name: "category", type: "string", desc: "Filter by category (e.g. television)." },
+    { name: "subCategory", type: "string", desc: "Filter by sub-category." },
+    { name: "operatorName", type: "string", desc: "Filter by operator/biller name." },
+    { name: "page", type: "number", desc: "1-based page number." },
+    { name: "limit", type: "number", desc: "Page size." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.vouchers[].skuId", type: "string", desc: "Biller SKU id — pass to the quote endpoint." },
+    { name: "data.vouchers[].productDescription", type: "string", desc: "Biller/product description." },
+    { name: "data.vouchers[].minAmount", type: "number", desc: "Minimum payable amount." },
+    { name: "data.vouchers[].maxAmount", type: "number", desc: "Maximum payable amount." },
+    { name: "data.vouchers[].category", type: "string", desc: "Biller category." },
+    { name: "data.vouchers[].countryCode", type: "string", desc: "Biller country code." },
+    { name: "data.vouchers[].operatorName", type: "string", desc: "Operator/biller name." },
+    { name: "data.vouchers[].fxRate", type: "number", desc: "Local-currency exchange rate." },
+    { name: "data.vouchers[].mandatoryFields", type: "object[]", desc: "Required account inputs, each { Name, Description } — supply under mandatoryDetails on quote." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Success, here are the available vouchers.",
+  "data": {
+    "vouchers": [
+      {
+        "skuId": "HRmVQmAqCNwm",
+        "productDescription": "DTH Airtel 300 INR",
+        "inquiryAvailable": false,
+        "minAmount": 300,
+        "maxAmount": 300,
+        "category": "television",
+        "subCategory": "",
+        "countryName": "india",
+        "countryCode": "in",
+        "operatorName": "dth airtel",
+        "fee": 0,
+        "fxRate": 59.6421471172962,
+        "mandatoryFields": [
+          { "Name": "account_number", "Description": "Account Number" }
+        ]
+      }
+    ],
+    "total": 1,
+    "count": 1,
+    "hasMore": false,
+    "thisPage": 1,
+    "nextPage": null,
+    "lastPage": 1
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/billpayment/filters?countryCode=IN" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.billpayment.filters({ countryCode: "IN" });\n// data.vouchers[0].skuId + mandatoryFields -> quote',
+};
+
+const BILL_CATEGORY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns the list of bill categories available in a country as a flat string array.",
+  queryParams: [
+    { name: "countryCode", req: "*", type: "string", desc: "ISO alpha-2 country code (e.g. IN)." },
+    { name: "operatorName", type: "string", desc: "Optional operator name to scope categories." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data", type: "string[]", desc: "Available bill categories for the country." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Success, here are the available categories.",
+  "data": ["television", "voip"],
+  "error": null
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/billpayment/category?countryCode=IN" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.billpayment.categories({ countryCode: "IN" });\n// data -> ["television","voip"]',
+};
+
+const BILL_OPERATOR_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns the operators for a category in a country as a flat string array.",
+  queryParams: [
+    { name: "countryCode", req: "*", type: "string", desc: "ISO alpha-2 country code (e.g. IN)." },
+    { name: "category", req: "*", type: "string", desc: "Bill category (e.g. television)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data", type: "string[]", desc: "Operators available for the category." },
+  ],
+  responseJson: `{
+  "status": 200,
+  "message": "Success, here are the available categories.",
+  "data": ["dth sun direct", "dth videocon", "dth dish tv", "dth airtel", "dth tata-sky"],
+  "error": null
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payout/billpayment/operator?countryCode=IN&category=television" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.billpayment.operators({ countryCode: "IN", category: "television" });',
+};
+
+const BILL_QUOTE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). mandatoryDetails must carry the keys named by the biller's mandatoryFields (from filters) — e.g. { account_number }. Returns a quote with quoteId and crypto_amount; pass quoteId to submit-order.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "string", desc: "Biller SKU id from filters." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with (e.g. USDT)." },
+    { name: "mandatoryDetails", req: "*", type: "object", desc: "Object keyed by the biller's mandatoryFields Names, e.g. { account_number: \"...\" }." },
+    { name: "userEmail", type: "string", desc: "End-user email the payment is on behalf of." },
+  ],
+  requestJson: `{
+  "skuId": "HRmVQmAqCNwm",
+  "cryptoCoin": "USDT",
+  "mandatoryDetails": { "account_number": "1234567890" },
+  "userEmail": "user@partner.com"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Quote id — pass to POST /billpayment/submit-order." },
+    { name: "data.crypto_amount", type: "number", desc: "Coin quantity the sender is charged." },
+    { name: "data.fiat_amount", type: "number", desc: "Bill amount in local currency." },
+    { name: "data.fiat_currency", type: "string", desc: "Local currency of the bill." },
+    { name: "data.crypto_coin", type: "string", desc: "Crypto asset charged." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the billpayment quote!",
+  "data": {
+    "skuId": "HRmVQmAqCNwm",
+    "fiat_amount": 300,
+    "fiat_currency": "INR",
+    "crypto_amount": 5.035030000000002,
+    "crypto_coin": "USDT",
+    "quoteId": "3369c12c-fef5-4848-b54b-ce0656ce878f"
+  },
+  "error": null
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "A field failed validation — e.g. unknown skuId, unsupported cryptoCoin, or a missing mandatoryDetails key required by the biller." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/billpayment/quote \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": "HRmVQmAqCNwm", "cryptoCoin": "USDT", "mandatoryDetails": { "account_number": "1234567890" }, "userEmail": "user@partner.com" }'`,
+  ts: 'const { data } = await client.billpayment.quote({\n  skuId: "HRmVQmAqCNwm",\n  cryptoCoin: "USDT",\n  mandatoryDetails: { account_number: "1234567890" },\n  userEmail: "user@partner.com",\n});\n// submit with data.quoteId',
+};
+
+const BILL_QUOTE_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Unstable bill-payment quote — same body as the base quote; pricing guaranteed only at submit time. Modelled on the live base quote.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "string", desc: "Biller SKU id from filters." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "mandatoryDetails", req: "*", type: "object", desc: "Object keyed by the biller's mandatoryFields Names." },
+    { name: "userEmail", type: "string", desc: "End-user email the payment is on behalf of." },
+  ],
+  requestJson: `{
+  "skuId": "HRmVQmAqCNwm",
+  "cryptoCoin": "USDT",
+  "mandatoryDetails": { "account_number": "1234567890" },
+  "userEmail": "user@partner.com"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.quoteId", type: "string", desc: "Quote id (re-priced at submit time)." },
+    { name: "data.crypto_amount", type: "number", desc: "Indicative coin quantity charged." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Successfully fetched the billpayment quote!",
+  "data": {
+    "skuId": "HRmVQmAqCNwm",
+    "fiat_amount": 300,
+    "fiat_currency": "INR",
+    "crypto_amount": 5.035030000000002,
+    "crypto_coin": "USDT",
+    "quoteId": "3369c12c-fef5-4848-b54b-ce0656ce878f"
+  },
+  "error": null
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/billpayment/quote/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": "HRmVQmAqCNwm", "cryptoCoin": "USDT", "mandatoryDetails": { "account_number": "1234567890" }, "userEmail": "user@partner.com" }'`,
+  ts: 'const { data } = await client.billpayment.quoteUnstable({ /* payload */ });',
+};
+
+const BILL_SUBMIT_ORDER_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Confirms a bill-payment quote and pays the biller. Success body modelled — not live-fired to avoid spending sandbox balance; verify before publishing.",
+  reqFields: [
+    { name: "quoteId", req: "*", type: "string", desc: "The quoteId returned by POST /billpayment/quote." },
+  ],
+  requestJson: `{
+  "quoteId": "3369c12c-fef5-4848-b54b-ce0656ce878f"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created bill-payment order id." },
+    { name: "data.status", type: "string", desc: "Order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Billpayment order submitted successfully",
+  "data": {
+    "orderId": "bp_ord_8Kd2mQ9fLb",
+    "status": "PROCESSING"
+  },
+  "error": null
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "The quoteId is invalid or has expired. Re-fetch a quote and submit again." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/billpayment/submit-order \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "quoteId": "3369c12c-fef5-4848-b54b-ce0656ce878f" }'`,
+  ts: 'const { data } = await client.billpayment.submitOrder({ quoteId: "3369c12c-..." });',
+};
+
+const BILL_SUBMIT_ORDER_UNSTABLE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Single-call bill payment — quotes and pays in one request with no prior quoteId (prices at submit time). Modelled from Swagger; not live-fired.",
+  reqFields: [
+    { name: "skuId", req: "*", type: "string", desc: "Biller SKU id from filters." },
+    { name: "cryptoCoin", req: "*", type: "string", desc: "Crypto asset to pay with." },
+    { name: "mandatoryDetails", req: "*", type: "object", desc: "Object keyed by the biller's mandatoryFields Names." },
+    { name: "userEmail", type: "string", desc: "End-user email the payment is on behalf of." },
+  ],
+  requestJson: `{
+  "skuId": "HRmVQmAqCNwm",
+  "cryptoCoin": "USDT",
+  "mandatoryDetails": { "account_number": "1234567890" },
+  "userEmail": "user@partner.com"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.orderId", type: "string", desc: "Created bill-payment order id." },
+    { name: "data.status", type: "string", desc: "Order status." },
+  ],
+  responseJson: `{
+  "status": 201,
+  "message": "Billpayment order submitted successfully",
+  "data": {
+    "orderId": "bp_ord_9Lp3nR0gMc",
+    "status": "PROCESSING"
+  },
+  "error": null
+}`,
+  errFields: [{ status: "400", code: "—", desc: "A field failed validation, or pricing changed beyond tolerance at submit." }, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payout/billpayment/submit-order/unstable \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "skuId": "HRmVQmAqCNwm", "cryptoCoin": "USDT", "mandatoryDetails": { "account_number": "1234567890" }, "userEmail": "user@partner.com" }'`,
+  ts: 'const { data } = await client.billpayment.submitOrderSingleCall({ /* full payload */ });',
+};
+
+// --- Fiat Wallets (Day 10) -------------------------------------------------
+// Fiat pay-in wallets + virtual bank accounts under /v1/payin/fiat_wallet/*.
+// Live-verified 2026-07-03. FULL envelope { success, status, message, code,
+// info, data }. Wallet/virtual-account creation requires a KYC-approved user
+// (sandbox user was not KYC'd → 400 EN-VAL-041), so those success bodies are
+// modelled and flagged. The virtual-account sandbox/* routes are test helpers
+// that simulate the bank rail (deposit → authorize/deny/cancel → webhook).
+
+const FW_KYC_ERR: EndpointErrorRow = { status: "400", code: "EN-VAL-041", desc: "KYC verification is required before wallet creation. Complete the user's KYC first." };
+
+const FW_CREATE_WALLET_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-03) — the sandbox user was not KYC-verified, returning 400 EN-VAL-041. The 201 body is modelled; verify against a KYC-approved user before publishing.",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user to own the wallet." },
+    { name: "currency_code", req: "*", type: "string", desc: "Wallet currency (e.g. USD)." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "currency_code": "USD"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.wallet_id", type: "string", desc: "Identifier of the created wallet." },
+    { name: "data.currency_code", type: "string", desc: "Wallet currency." },
+    { name: "data.balance", type: "number", desc: "Opening balance (0)." },
+    { name: "data.user_email", type: "string", desc: "Owning user's email." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Wallet created successfully",
+  "data": {
+    "wallet_id": "507f1f77bcf86cd799439011",
+    "currency_code": "USD",
+    "balance": 0,
+    "user_email": "user@partner.com"
+  }
+}`,
+  errFields: [FW_KYC_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/wallets \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "currency_code": "USD" }'`,
+  ts: 'const { data } = await client.fiatWallet.createWallet({ userEmail: "user@partner.com", currency_code: "USD" });\n// data.wallet_id -> ...',
+};
+
+const FW_LIST_WALLETS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns the user's wallets under data.{ user_email, wallets, total_wallets }. Sandbox user had none.",
+  queryParams: [
+    { name: "userEmail", req: "*", type: "string", desc: "End-user whose wallets to list." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.user_email", type: "string", desc: "The queried user's email." },
+    { name: "data.wallets", type: "object[]", desc: "The user's fiat wallets." },
+    { name: "data.total_wallets", type: "number", desc: "Number of wallets." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "User wallets retrieved successfully",
+  "data": {
+    "user_email": "user@partner.com",
+    "wallets": [],
+    "total_wallets": 0
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payin/fiat_wallet/wallets?userEmail=user@partner.com" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.fiatWallet.listWallets({ userEmail: "user@partner.com" });\n// data.wallets -> [...]',
+};
+
+const FW_WALLET_BALANCE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox user had no wallet, so the 200 body is modelled — verify field names against a funded wallet before publishing.",
+  pathParams: [
+    { name: "walletId", req: "*", type: "string", desc: "Identifier of the wallet to read." },
+  ],
+  queryParams: [
+    { name: "currency", req: "*", type: "string", desc: "Currency to read the balance in (e.g. USD)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.wallet_id", type: "string", desc: "The wallet id." },
+    { name: "data.currency", type: "string", desc: "Balance currency." },
+    { name: "data.balance", type: "number", desc: "Available balance." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Balance retrieved successfully",
+  "data": {
+    "wallet_id": "507f1f77bcf86cd799439011",
+    "currency": "USD",
+    "balance": 0
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No wallet exists with the supplied walletId." },
+  ],
+  curl: `curl "https://sandbox.encryptus.co/v1/payin/fiat_wallet/wallets/<walletId>/balance?currency=USD" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.fiatWallet.balance("<walletId>", { currency: "USD" });',
+};
+
+const FW_GENERATE_VA_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-03) — returned 400 EN-VAL-041 (KYC required, same gate as wallet creation). The 201 body is modelled on a virtual-account provisioning shape; verify against a KYC-approved user before publishing.",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "KYC-approved end-user to provision the account for." },
+    { name: "postal_code", type: "string", desc: "Postal code for the account holder (optional)." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "postal_code": "10001"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.account_number", type: "string", desc: "Virtual bank account number." },
+    { name: "data.routing_number", type: "string", desc: "Routing / sort code for the account." },
+    { name: "data.bank_name", type: "string", desc: "Name of the receiving bank." },
+    { name: "data.currency", type: "string", desc: "Account currency." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Virtual account generated successfully",
+  "data": {
+    "account_number": "0123456789",
+    "routing_number": "021000021",
+    "bank_name": "Sandbox Bank",
+    "currency": "USD"
+  }
+}`,
+  errFields: [FW_KYC_ERR, authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/generate \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "postal_code": "10001" }'`,
+  ts: 'const { data } = await client.fiatWallet.generateVirtualAccount({ userEmail: "user@partner.com", postal_code: "10001" });',
+};
+
+const FW_TOPUP_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Adds funds to a wallet. Requires an existing (KYC-gated) wallet, so the success body is modelled — verify before publishing.",
+  pathParams: [
+    { name: "walletId", req: "*", type: "string", desc: "Identifier of the wallet to fund." },
+  ],
+  reqFields: [
+    { name: "amount", req: "*", type: "number", desc: "Amount to add." },
+    { name: "currency_code", req: "*", type: "string", desc: "Currency of the top-up (e.g. USD)." },
+    { name: "customer_phone", req: "*", type: "string", desc: "Customer phone number in international format." },
+  ],
+  requestJson: `{
+  "amount": 50,
+  "currency_code": "USD",
+  "customer_phone": "+254700000000"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.wallet_id", type: "string", desc: "The funded wallet id." },
+    { name: "data.balance", type: "number", desc: "Updated balance after the top-up." },
+    { name: "data.transaction_id", type: "string", desc: "Identifier of the top-up transaction." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Wallet topped up successfully",
+  "data": {
+    "wallet_id": "507f1f77bcf86cd799439011",
+    "balance": 50,
+    "transaction_id": "txn_8Kd2mQ9fLb"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No wallet exists with the supplied walletId." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/wallets/<walletId>/topup \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "amount": 50, "currency_code": "USD", "customer_phone": "+254700000000" }'`,
+  ts: 'const { data } = await client.fiatWallet.topup("<walletId>", { amount: 50, currency_code: "USD", customer_phone: "+254700000000" });',
+};
+
+const FW_TRANSACTIONS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Rich filtering via query params. Note: the records array and pagination counters sit at the TOP level (transactions, total, count, hasMore, thisPage, nextPage, lastPage), not under data.",
+  queryParams: [
+    { name: "userEmail", type: "string", desc: "Filter by end-user email." },
+    { name: "page", type: "number", desc: "1-based page number." },
+    { name: "limit", type: "number", desc: "Page size." },
+    { name: "status", type: "string", desc: "Filter by transaction status." },
+    { name: "type", type: "string", desc: "Filter by transaction type." },
+    { name: "direction", type: "string", desc: "Filter by direction (credit/debit)." },
+    { name: "currency", type: "string", desc: "Filter by currency." },
+    { name: "start_date", type: "string", desc: "Start of the date range (ISO 8601)." },
+    { name: "end_date", type: "string", desc: "End of the date range (ISO 8601)." },
+    { name: "reference", type: "string", desc: "Filter by reference." },
+    { name: "sortBy", type: "string", desc: "Field to sort by." },
+    { name: "sortOrder", type: "string", desc: "Sort direction (asc/desc)." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "transactions", type: "object[]", desc: "The page of transaction records (top-level)." },
+    { name: "total", type: "number", desc: "Total transactions across all pages." },
+    { name: "count", type: "number", desc: "Number of records on this page." },
+    { name: "hasMore", type: "boolean", desc: "Whether further pages exist." },
+    { name: "thisPage", type: "number", desc: "Current page number." },
+    { name: "nextPage", type: "number | null", desc: "Next page number, or null on the last page." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Transaction history retrieved successfully",
+  "transactions": [],
+  "total": 0,
+  "count": 0,
+  "hasMore": false,
+  "thisPage": 1,
+  "nextPage": null,
+  "lastPage": 0
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payin/fiat_wallet/transactions?userEmail=user@partner.com&page=1&limit=20" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const res = await client.fiatWallet.transactions({ userEmail: "user@partner.com", page: 1, limit: 20 });\n// res.transactions -> [...] (top-level)',
+};
+
+const FW_TRANSACTION_DETAIL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Fetch a single fiat-wallet transaction by its identifier. Sandbox had none, so the 200 body is modelled — verify field names against a real transaction before publishing.",
+  pathParams: [
+    { name: "identifier", req: "*", type: "string", desc: "Transaction identifier / reference." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401", "404"],
+  respFields: [
+    { name: "data.identifier", type: "string", desc: "The transaction identifier." },
+    { name: "data.type", type: "string", desc: "Transaction type." },
+    { name: "data.direction", type: "string", desc: "credit or debit." },
+    { name: "data.amount", type: "number", desc: "Transaction amount." },
+    { name: "data.currency", type: "string", desc: "Transaction currency." },
+    { name: "data.status", type: "string", desc: "Transaction status." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "identifier": "txn_8Kd2mQ9fLb",
+    "type": "deposit",
+    "direction": "credit",
+    "amount": 100,
+    "currency": "USD",
+    "status": "completed"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No transaction exists with the supplied identifier." },
+  ],
+  curl: `curl https://sandbox.encryptus.co/v1/payin/fiat_wallet/transactions/<identifier> \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.fiatWallet.transaction("<identifier>");',
+};
+
+const FW_VA_TRANSACTIONS_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Virtual-account transactions paginate under data.{ transactions, page, size, total } (different shape from the wallet transactions list).",
+  queryParams: [
+    { name: "page", type: "string", desc: "1-based page number." },
+    { name: "size", type: "string", desc: "Page size." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.transactions", type: "object[]", desc: "The page of virtual-account transactions." },
+    { name: "data.page", type: "number", desc: "Current page number." },
+    { name: "data.size", type: "number", desc: "Page size." },
+    { name: "data.total", type: "number", desc: "Total transactions." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "transactions": [],
+    "page": 1,
+    "size": 10,
+    "total": 0
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/transactions?page=1&size=10" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.fiatWallet.virtualAccountTransactions({ page: "1", size: "10" });',
+};
+
+const FW_CONVERT_TO_CRYPTO_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Converts fiat wallet balance into a target crypto asset. Requires a funded (KYC-gated) wallet, so the success body is modelled — verify before publishing. target_crypto uses the provider's asset codes (e.g. ADA_TEST in sandbox).",
+  reqFields: [
+    { name: "userEmail", req: "*", type: "string", desc: "End-user whose wallet is converted." },
+    { name: "amount", req: "*", type: "number", desc: "Fiat amount to convert." },
+    { name: "target_crypto", req: "*", type: "string", desc: "Target crypto asset code (e.g. ADA_TEST in sandbox)." },
+  ],
+  requestJson: `{
+  "userEmail": "user@partner.com",
+  "amount": 50,
+  "target_crypto": "ADA_TEST"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.crypto_amount", type: "number", desc: "Crypto quantity credited." },
+    { name: "data.target_crypto", type: "string", desc: "Target crypto asset." },
+    { name: "data.rate", type: "number", desc: "Applied conversion rate." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Conversion successful",
+  "data": {
+    "crypto_amount": 125.5,
+    "target_crypto": "ADA_TEST",
+    "rate": 2.51
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Insufficient balance or an unsupported target_crypto." },
+    authErr,
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/convert-to-crypto \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "userEmail": "user@partner.com", "amount": 50, "target_crypto": "ADA_TEST" }'`,
+  ts: 'const { data } = await client.fiatWallet.convertToCrypto({ userEmail: "user@partner.com", amount: 50, target_crypto: "ADA_TEST" });',
+};
+
+const FW_SANDBOX_DEPOSIT_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox-only test helper: simulates an inbound bank wire into a user's virtual account so you can exercise the authorize/deny/cancel/webhook lifecycle. Body field names are Pascal-case (Amount, PaymentType, Description). Modelled from Swagger.",
+  reqFields: [
+    { name: "Amount", req: "*", type: "number", desc: "Deposit amount to simulate." },
+    { name: "PaymentType", req: "*", type: "string", desc: 'Rail to simulate, e.g. "debit.Deposit_Domestic_Wire".' },
+    { name: "Description", type: "string", desc: "Free-text description for the simulated deposit." },
+  ],
+  requestJson: `{
+  "Amount": 100,
+  "PaymentType": "debit.Deposit_Domestic_Wire",
+  "Description": "Test deposit"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data.TransactionNumber", type: "string", desc: "Identifier of the simulated transaction — feed it to the authorize/deny/cancel/webhook helpers." },
+    { name: "data.status", type: "string", desc: "Initial simulated status (e.g. Awaits_approval)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Sandbox deposit created",
+  "data": {
+    "TransactionNumber": "FV000023005",
+    "status": "Awaits_approval"
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/sandbox/deposit \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "Amount": 100, "PaymentType": "debit.Deposit_Domestic_Wire", "Description": "Test deposit" }'`,
+  ts: 'const { data } = await client.fiatWallet.sandboxDeposit({ Amount: 100, PaymentType: "debit.Deposit_Domestic_Wire", Description: "Test deposit" });\n// data.TransactionNumber -> authorize/deny/cancel',
+};
+
+const FW_SANDBOX_AUTHORIZE_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox-only test helper: approves a pending virtual-account transaction created by the sandbox deposit helper. Modelled from Swagger.",
+  reqFields: [
+    { name: "TransactionNumber", req: "*", type: "string", desc: "Transaction to authorize (from the sandbox deposit)." },
+    { name: "Comments", req: "*", type: "string", desc: "Reviewer comments." },
+  ],
+  requestJson: `{
+  "TransactionNumber": "FV000023005",
+  "Comments": "Authorizing deposit"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.TransactionNumber", type: "string", desc: "The affected transaction." },
+    { name: "data.status", type: "string", desc: "Updated status (e.g. Authorized)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Transaction authorized",
+  "data": {
+    "TransactionNumber": "FV000023005",
+    "status": "Authorized"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No pending transaction exists with the supplied TransactionNumber." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/sandbox/authorize-transaction \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "TransactionNumber": "FV000023005", "Comments": "Authorizing deposit" }'`,
+  ts: 'await client.fiatWallet.sandboxAuthorize({ TransactionNumber: "FV000023005", Comments: "Authorizing deposit" });',
+};
+
+const FW_SANDBOX_DENY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox-only test helper: rejects a pending virtual-account transaction. Modelled from Swagger.",
+  reqFields: [
+    { name: "TransactionNumber", req: "*", type: "string", desc: "Transaction to deny." },
+    { name: "Comments", req: "*", type: "string", desc: "Reviewer comments." },
+  ],
+  requestJson: `{
+  "TransactionNumber": "FV000006261",
+  "Comments": "Deny Transaction"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.TransactionNumber", type: "string", desc: "The affected transaction." },
+    { name: "data.status", type: "string", desc: "Updated status (e.g. Denied)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Transaction denied",
+  "data": {
+    "TransactionNumber": "FV000006261",
+    "status": "Denied"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No pending transaction exists with the supplied TransactionNumber." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/sandbox/deny-transaction \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "TransactionNumber": "FV000006261", "Comments": "Deny Transaction" }'`,
+  ts: 'await client.fiatWallet.sandboxDeny({ TransactionNumber: "FV000006261", Comments: "Deny Transaction" });',
+};
+
+const FW_SANDBOX_CANCEL_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox-only test helper: cancels a pending virtual-account transaction. Modelled from Swagger.",
+  reqFields: [
+    { name: "TransactionNumber", req: "*", type: "string", desc: "Transaction to cancel." },
+    { name: "Comments", req: "*", type: "string", desc: "Reviewer comments." },
+  ],
+  requestJson: `{
+  "TransactionNumber": "FV000006252",
+  "Comments": "Cancelling deposit"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.TransactionNumber", type: "string", desc: "The affected transaction." },
+    { name: "data.status", type: "string", desc: "Updated status (e.g. Cancelled)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Transaction cancelled",
+  "data": {
+    "TransactionNumber": "FV000006252",
+    "status": "Cancelled"
+  }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No pending transaction exists with the supplied TransactionNumber." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/sandbox/cancel-transaction \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "TransactionNumber": "FV000006252", "Comments": "Cancelling deposit" }'`,
+  ts: 'await client.fiatWallet.sandboxCancel({ TransactionNumber: "FV000006252", Comments: "Cancelling deposit" });',
+};
+
+const FW_SANDBOX_WEBHOOK_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Sandbox-only test helper: replays the virtual-account webhook for a transaction so you can verify your webhook handler. Modelled from Swagger.",
+  reqFields: [
+    { name: "TransactionNumber", req: "*", type: "string", desc: "Transaction whose webhook to replay." },
+  ],
+  requestJson: `{
+  "TransactionNumber": "FV000458842"
+}`,
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.sent", type: "boolean", desc: "Whether the webhook was dispatched." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Webhook sent",
+  "data": { "sent": true }
+}`,
+  errFields: [
+    authErr,
+    { status: "404", code: "—", desc: "No transaction exists with the supplied TransactionNumber." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/sandbox/send-webhook \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "TransactionNumber": "FV000458842" }'`,
+  ts: 'await client.fiatWallet.sandboxSendWebhook({ TransactionNumber: "FV000458842" });',
+};
+
+const FW_EXCHANGE_RATES_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-fired (2026-07-03) — every currency format tried returned 400 EN-VAL-016 (\"Currency Code is either invalid or not supported\"), so the accepted `currencies` format could not be confirmed and the 200 body is modelled. Flag with operations for the supported currency list / format.",
+  queryParams: [
+    { name: "currencies", type: "string", desc: "Currencies to quote. Exact accepted format unconfirmed — flagged for operations." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["400", "401"],
+  respFields: [
+    { name: "data", type: "object", desc: "Map or list of currency exchange rates (shape to be confirmed)." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 200,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Success",
+  "data": {
+    "USD": 1,
+    "EUR": 0.92
+  }
+}`,
+  errFields: [
+    { status: "400", code: "EN-VAL-016", desc: "Currency Code is either invalid or not supported. Please contact operations." },
+    authErr,
+  ],
+  curl: `curl "https://sandbox.encryptus.co/v1/payin/fiat_wallet/exchange-rates?currencies=USD,EUR" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.fiatWallet.exchangeRates({ currencies: "USD,EUR" });',
+};
+
+const FW_VA_BENEFICIARIES_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Live-verified (2026-07-03). Returns beneficiaries available for virtual-account transfers under data.beneficiaries. Sandbox is pre-seeded with several.",
+  queryParams: [
+    { name: "page", type: "number", desc: "1-based page number." },
+    { name: "size", type: "number", desc: "Page size." },
+  ],
+  successStatus: "200",
+  successLabel: "200 OK",
+  errorChips: ["401"],
+  respFields: [
+    { name: "data.beneficiaries[].beneficiary_id", type: "string", desc: "Beneficiary id — pass to link-virtualaccount-beneficiary." },
+    { name: "data.beneficiaries[].name", type: "string", desc: "Beneficiary name." },
+    { name: "data.beneficiaries[].email", type: "string", desc: "Beneficiary email." },
+    { name: "data.beneficiaries[].type", type: "string", desc: "Beneficiary type (e.g. Individual)." },
+    { name: "data.beneficiaries[].status", type: "string", desc: "Beneficiary status (e.g. Active, Awaits_approval)." },
+    { name: "data.beneficiaries[].created_on", type: "string", desc: "Creation timestamp." },
+  ],
+  responseJson: `{
+  "success": true,
+  "data": {
+    "beneficiaries": [
+      {
+        "beneficiary_id": "6596539036991926235",
+        "name": "John MockDoe",
+        "email": "testuser123@gmail.com",
+        "type": "Individual",
+        "status": "Active",
+        "created_on": "2026-05-07T02:44:07.808-04:00",
+        "created_by": "Encryptus - Encryptus Sandbox"
+      }
+    ]
+  }
+}`,
+  errFields: [authErr],
+  curl: `curl "https://sandbox.encryptus.co/v1/payin/fiat_wallet/virtualaccount/beneficiaries?page=1&size=10" \\
+  -H "Authorization: Bearer <access_token>"`,
+  ts: 'const { data } = await client.fiatWallet.virtualAccountBeneficiaries({ page: 1, size: 10 });\n// data.beneficiaries[0].beneficiary_id -> link',
+};
+
+const FW_LINK_VA_BENEFICIARY_SPEC: EndpointSpec = {
+  auth: true,
+  note: "Links a virtual-account beneficiary (from the beneficiaries list) to a user's wallet. Requires an existing (KYC-gated) wallet, so the success body is modelled — verify before publishing.",
+  reqFields: [
+    { name: "user_email", req: "*", type: "string", desc: "End-user who owns the wallet." },
+    { name: "beneficiary_id", req: "*", type: "string", desc: "Beneficiary id from the beneficiaries list." },
+    { name: "wallet_id", req: "*", type: "string", desc: "Wallet to link the beneficiary to." },
+  ],
+  requestJson: `{
+  "user_email": "user@partner.com",
+  "beneficiary_id": "6596539036991926235",
+  "wallet_id": "507f1f77bcf86cd799439011"
+}`,
+  successStatus: "201",
+  successLabel: "201 Created",
+  errorChips: ["400", "401", "404"],
+  respFields: [
+    { name: "data.linked", type: "boolean", desc: "Whether the beneficiary was linked." },
+    { name: "data.beneficiary_id", type: "string", desc: "The linked beneficiary id." },
+    { name: "data.wallet_id", type: "string", desc: "The wallet the beneficiary was linked to." },
+  ],
+  responseJson: `{
+  "success": true,
+  "status": 201,
+  "message": "OK",
+  "code": "EN-SUCCESS-001",
+  "info": "Beneficiary linked successfully",
+  "data": {
+    "linked": true,
+    "beneficiary_id": "6596539036991926235",
+    "wallet_id": "507f1f77bcf86cd799439011"
+  }
+}`,
+  errFields: [
+    { status: "400", code: "—", desc: "Unknown beneficiary_id or wallet_id, or the beneficiary is not in a linkable status." },
+    authErr,
+    { status: "404", code: "—", desc: "No wallet exists with the supplied wallet_id." },
+  ],
+  curl: `curl -X POST https://sandbox.encryptus.co/v1/payin/fiat_wallet/link-virtualaccount-beneficiary \\
+  -H "Authorization: Bearer <access_token>" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "user_email": "user@partner.com", "beneficiary_id": "6596539036991926235", "wallet_id": "507f1f77bcf86cd799439011" }'`,
+  ts: 'await client.fiatWallet.linkVirtualAccountBeneficiary({\n  user_email: "user@partner.com",\n  beneficiary_id: "6596539036991926235",\n  wallet_id: "507f1f77bcf86cd799439011",\n});',
+};
+
 export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "partners-onboarding": ONBOARDING_SPEC,
   "partners-token": TOKEN_SPEC,
@@ -4393,6 +6402,57 @@ export const ENDPOINT_SPECS: Record<string, EndpointSpec> = {
   "wire-submit-wallet-unstable": WIRE_SUBMIT_WALLET_UNSTABLE_SPEC,
   "wire-transactions": WIRE_TRANSACTIONS_SPEC,
   "wire-transaction-detail": WIRE_TRANSACTION_DETAIL_SPEC,
+  // Fiat Wallets (Day 10) — /v1/payin/fiat_wallet/*
+  "fw-create-wallet": FW_CREATE_WALLET_SPEC,
+  "fw-list-wallets": FW_LIST_WALLETS_SPEC,
+  "fw-wallet-balance": FW_WALLET_BALANCE_SPEC,
+  "fw-generate-va": FW_GENERATE_VA_SPEC,
+  "fw-topup": FW_TOPUP_SPEC,
+  "fw-transactions": FW_TRANSACTIONS_SPEC,
+  "fw-transaction-detail": FW_TRANSACTION_DETAIL_SPEC,
+  "fw-va-transactions": FW_VA_TRANSACTIONS_SPEC,
+  "fw-convert-to-crypto": FW_CONVERT_TO_CRYPTO_SPEC,
+  "fw-sandbox-deposit": FW_SANDBOX_DEPOSIT_SPEC,
+  "fw-sandbox-authorize": FW_SANDBOX_AUTHORIZE_SPEC,
+  "fw-sandbox-deny": FW_SANDBOX_DENY_SPEC,
+  "fw-sandbox-cancel": FW_SANDBOX_CANCEL_SPEC,
+  "fw-sandbox-webhook": FW_SANDBOX_WEBHOOK_SPEC,
+  "fw-exchange-rates": FW_EXCHANGE_RATES_SPEC,
+  "fw-va-beneficiaries": FW_VA_BENEFICIARIES_SPEC,
+  "fw-link-va-beneficiary": FW_LINK_VA_BENEFICIARY_SPEC,
+  // Topup (Day 10) — /v1/topup/*
+  "topup-supported-crypto": TOPUP_SUPPORTED_CRYPTO_SPEC,
+  "topup-country-code": TOPUP_COUNTRY_CODE_SPEC,
+  "topup-carriers": TOPUP_CARRIERS_SPEC,
+  "topup-mobile-lookup": TOPUP_MOBILE_LOOKUP_SPEC,
+  "topup-carrier-plans": TOPUP_CARRIER_PLANS_SPEC,
+  "topup-quote": TOPUP_QUOTE_SPEC,
+  "topup-quote-v2": TOPUP_QUOTE_V2_SPEC,
+  "topup-quote-unstable": TOPUP_QUOTE_UNSTABLE_SPEC,
+  "topup-submit-order": TOPUP_SUBMIT_ORDER_SPEC,
+  "topup-submit-order-v2": TOPUP_SUBMIT_ORDER_V2_SPEC,
+  "topup-submit-order-unstable": TOPUP_SUBMIT_ORDER_UNSTABLE_SPEC,
+  "topup-order-detail": TOPUP_ORDER_DETAIL_SPEC,
+  "topup-orders": TOPUP_ORDERS_SPEC,
+  // Gift Card (Day 10) — /v1/payout/giftcard/*
+  "gift-filters": GIFT_FILTERS_SPEC,
+  "gift-quote": GIFT_QUOTE_SPEC,
+  "gift-quote-unstable": GIFT_QUOTE_UNSTABLE_SPEC,
+  "gift-quote-v2": GIFT_QUOTE_V2_SPEC,
+  "gift-order": GIFT_ORDER_SPEC,
+  "gift-order-v2": GIFT_ORDER_V2_SPEC,
+  "gift-order-unstable": GIFT_ORDER_UNSTABLE_SPEC,
+  "gift-order-detail": GIFT_ORDER_DETAIL_SPEC,
+  "gift-orders": GIFT_ORDERS_SPEC,
+  "gift-dtone-update": GIFT_DTONE_UPDATE_SPEC,
+  // Billpayment (Day 10) — /v1/payout/billpayment/*
+  "bill-filters": BILL_FILTERS_SPEC,
+  "bill-category": BILL_CATEGORY_SPEC,
+  "bill-operator": BILL_OPERATOR_SPEC,
+  "bill-quote": BILL_QUOTE_SPEC,
+  "bill-quote-unstable": BILL_QUOTE_UNSTABLE_SPEC,
+  "bill-submit-order": BILL_SUBMIT_ORDER_SPEC,
+  "bill-submit-order-unstable": BILL_SUBMIT_ORDER_UNSTABLE_SPEC,
 };
 
 export const REQUEST_JSON = `{
