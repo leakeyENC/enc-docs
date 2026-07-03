@@ -10,6 +10,7 @@ import {
 import { ApiSidebar } from "@/components/ApiSidebar";
 import { TryItConsole } from "@/components/TryItConsole";
 import { MethodBadge, MONO, OSWALD } from "@/components/primitives";
+import { DEBUGGING } from "@/lib/debug";
 
 export function generateStaticParams() {
   const out: { group: string; endpoint: string }[] = [];
@@ -114,7 +115,7 @@ export default async function ApiEndpointPage({
               </div>
             )}
 
-            {spec.note && (
+            {DEBUGGING && spec.note && (
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", padding: "13px 16px", background: "var(--c-warn-bg, #FFF8E6)", border: "1px solid var(--c-warn-border, #F2D88F)", borderRadius: "10px", marginBottom: "32px" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B7791F" strokeWidth="2" style={{ flex: "none", marginTop: "1px" }}>
                   <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
@@ -225,7 +226,7 @@ export default async function ApiEndpointPage({
                 <div style={headCell}>Status</div><div style={headCell}>Code</div><div style={headCell}>Description</div>
               </div>
               {spec.errFields.map((e, i) => (
-                <div key={e.code} style={{ display: "grid", gridTemplateColumns: "0.7fr 1.2fr 2.5fr", borderTop: "1px solid var(--c-border-faint)", fontSize: "13.5px", background: rowBg(i) }}>
+                <div key={`${e.status}-${e.code}-${i}`} style={{ display: "grid", gridTemplateColumns: "0.7fr 1.2fr 2.5fr", borderTop: "1px solid var(--c-border-faint)", fontSize: "13.5px", background: rowBg(i) }}>
                   <div style={{ padding: "12px 15px", fontFamily: MONO, fontSize: "13px", fontWeight: 600, color: "var(--c-danger-text)" }}>{e.status}</div>
                   <div style={{ padding: "12px 15px", fontFamily: MONO, fontSize: "12px", color: "var(--c-text-secondary)" }}>{e.code}</div>
                   <div style={{ padding: "12px 15px", color: "var(--c-text-secondary)", lineHeight: 1.55 }}>{e.desc}</div>
