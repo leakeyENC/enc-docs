@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import { Logo, MONO, OSWALD } from "./primitives";
+import { BrandLogo, MONO, OSWALD } from "./primitives";
 import { SearchOverlay } from "./SearchOverlay";
 import { MobileDrawer } from "./MobileDrawer";
 
@@ -91,8 +91,7 @@ export function Header() {
         }}
       >
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "11px", cursor: "pointer", flex: "none", textDecoration: "none" }}>
-          <Logo />
-          <span style={{ fontFamily: OSWALD, fontWeight: 700, fontSize: "22px", letterSpacing: ".14em", color: "var(--c-heading)" }}>ENCRYPTUS</span>
+          <BrandLogo height={26} style={{ color: "var(--c-heading)" }} />
           <span style={{ fontFamily: OSWALD, fontWeight: 500, fontSize: "12px", letterSpacing: ".18em", color: "#E8B419", border: "1px solid rgba(232,180,25,.5)", padding: "2px 7px", borderRadius: "20px", marginLeft: "2px" }}>DOCS</span>
         </Link>
         <nav className="ed-hide-mobile" style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>

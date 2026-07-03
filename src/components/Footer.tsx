@@ -1,5 +1,5 @@
 import { SOCIALS, FOOTER_COLS } from "@/data/site";
-import { OSWALD } from "./primitives";
+import { BrandLogo, OSWALD } from "./primitives";
 
 export function Footer() {
   return (
@@ -17,11 +17,7 @@ export function Footer() {
         >
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-              <svg width="28" height="28" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="45" fill="#0A1A4F" stroke="#E8B419" strokeWidth="7" />
-                <text x="51" y="53" textAnchor="middle" dominantBaseline="central" fontFamily="Oswald" fontWeight="700" fontSize="64" fill="#E8B419">e</text>
-              </svg>
-              <span style={{ fontFamily: OSWALD, fontWeight: 700, fontSize: "20px", letterSpacing: ".14em", color: "var(--c-heading)" }}>ENCRYPTUS</span>
+              <BrandLogo height={24} style={{ color: "var(--c-heading)" }} />
             </div>
             <p style={{ fontSize: "13.5px", lineHeight: 1.6, color: "var(--c-text-faint)", maxWidth: "300px", margin: "0 0 18px" }}>
               Regulated crypto-to-fiat infrastructure for institutions. Licensed in the DMCC free zone, Dubai, UAE.
