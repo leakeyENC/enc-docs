@@ -33,8 +33,7 @@ export function ApiSidebar({
           onClick={onToggle}
           title="Expand navigation"
           aria-label="Expand navigation"
-          className="ed-hover-bg"
-          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "32px", height: "32px", border: "1px solid var(--c-border-card)", borderRadius: "8px", background: "transparent", color: "var(--c-text-faint)", cursor: "pointer" }}
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "38px", height: "38px", border: "none", borderRadius: "9px", background: "var(--c-cta-bg)", color: "var(--c-cta-text)", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,.18)" }}
         >
           <PanelIcon open={false} />
         </button>
@@ -56,10 +55,10 @@ export function ApiSidebar({
             onClick={onToggle}
             title="Collapse navigation"
             aria-label="Collapse navigation"
-            className="ed-hover-bg"
-            style={{ flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", border: "none", borderRadius: "7px", background: "transparent", color: "var(--c-text-faint)", cursor: "pointer" }}
+            style={{ flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "5px", height: "30px", padding: "0 11px", border: "1px solid var(--c-accent-bar)", borderRadius: "8px", background: "var(--c-accent-soft)", color: "var(--c-accent)", fontSize: "11px", fontWeight: 700, letterSpacing: ".04em", cursor: "pointer" }}
           >
             <PanelIcon open={true} />
+            HIDE
           </button>
         )}
       </div>
@@ -75,7 +74,6 @@ export function ApiSidebar({
             >
               <span style={{ width: "14px", flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--c-text-faint)" }}><Chevron open={isOpen} /></span>
               <span style={{ flex: 1, fontFamily: "var(--font-ibm), system-ui, sans-serif", fontWeight: 600, fontSize: "13.5px", letterSpacing: ".01em", color: "var(--c-text)" }}>{g.id}</span>
-              <span style={{ flex: "none", fontSize: "11px", color: "var(--c-chip-text)", background: "var(--c-chip-bg)", borderRadius: "20px", padding: "1px 8px" }}>{g.items.length}</span>
             </div>
             {isOpen && (
               <div style={{ margin: "2px 0 6px" }}>
