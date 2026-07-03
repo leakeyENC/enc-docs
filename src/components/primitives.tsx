@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { Method } from "@/data/api";
 
 export const MONO =
-  "Consolas,Menlo,Monaco,'Courier New',monospace";
+  "var(--font-roboto-mono),Consolas,Menlo,Monaco,'Courier New',monospace";
 
 export const OSWALD = "var(--font-oswald),sans-serif";
 

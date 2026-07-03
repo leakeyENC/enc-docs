@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Oswald, IBM_Plex_Sans } from "next/font/google";
+import { Oswald, IBM_Plex_Sans, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Header } from "@/components/Header";
@@ -17,6 +17,12 @@ const ibmPlexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
+const robotoMono = Roboto_Mono({
+  variable: "--font-roboto-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: "Encryptus Docs — Crypto-to-Fiat Infrastructure",
   description:
@@ -27,7 +33,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${oswald.variable} ${ibmPlexSans.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${oswald.variable} ${ibmPlexSans.variable} ${robotoMono.variable}`}>
       <body className="ed-app">
         <ThemeProvider>
           <Header />
