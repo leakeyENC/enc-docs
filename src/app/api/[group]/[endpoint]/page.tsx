@@ -7,7 +7,7 @@ import {
   groupForEndpoint,
   specFor,
 } from "@/data/api";
-import { ApiSidebar } from "@/components/ApiSidebar";
+import { ApiGrid } from "@/components/ApiGrid";
 import { TryItConsole } from "@/components/TryItConsole";
 import { MethodBadge, MONO, OSWALD } from "@/components/primitives";
 import { DEBUGGING } from "@/lib/debug";
@@ -78,8 +78,7 @@ export default async function ApiEndpointPage({
 
   return (
     <div style={{ background: "var(--c-bg)" }}>
-      <div className="ed-api-grid" style={{ display: "grid", gridTemplateColumns: "300px minmax(0,1fr) 400px", maxWidth: "1640px", margin: "0 auto", alignItems: "start" }}>
-        <ApiSidebar />
+      <ApiGrid>
 
         <div style={{ background: "var(--c-surface)", minHeight: "calc(100vh - 64px)" }}>
           <div style={{ maxWidth: "720px", margin: "0 auto", padding: "38px 44px 90px" }}>
@@ -237,7 +236,7 @@ export default async function ApiEndpointPage({
         </div>
 
         <TryItConsole endpoint={ae} />
-      </div>
+      </ApiGrid>
     </div>
   );
 }
