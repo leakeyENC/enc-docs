@@ -127,8 +127,8 @@ export function MobileDrawer({
           Search docs…
         </div>
         <Link href="/guides/overview" onClick={onClose} style={mNavPill(isGuide)}>Guides</Link>
-        <Link href="/api" onClick={onClose} style={mNavPill(isApi)}>API Reference</Link>
-        <Link href="/errors" onClick={onClose} style={mNavPill(isErrors)}>Error Codes</Link>
+        <Link href="/api" onClick={onClose} style={mNavPill(isApi)}>API reference</Link>
+        <Link href="/errors" onClick={onClose} style={mNavPill(isErrors)}>Error codes</Link>
         <Link
           href="/api"
           onClick={onClose}

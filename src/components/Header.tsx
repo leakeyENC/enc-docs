@@ -96,8 +96,8 @@ export function Header() {
         </Link>
         <nav className="ed-hide-mobile" style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>
           <Link href="/guides/overview" style={navPill(isGuide)}>Guides</Link>
-          <Link href="/api" style={navPill(isApi)}>API Reference</Link>
-          <Link href="/errors" style={navPill(isErrors)}>Error Codes</Link>
+          <Link href="/api" style={navPill(isApi)}>API reference</Link>
+          <Link href="/errors" style={navPill(isErrors)}>Error codes</Link>
         </nav>
         <div
           onClick={() => setSearchOpen(true)}
